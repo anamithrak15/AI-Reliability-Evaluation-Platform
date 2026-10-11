@@ -3,8 +3,7 @@ from rq import Queue, Worker
 
 from app.core.config import get_settings
 from app.core.logging import configure_logging
-
-QUEUE_NAME = "evaluations"
+from app.services.queue import QUEUE_NAME
 
 
 def main() -> None:

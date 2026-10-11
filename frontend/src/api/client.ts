@@ -25,12 +25,17 @@ export interface ReadyResponse {
 
 export async function request<T>(
   path: string,
-  options: { method?: string; body?: unknown; acceptStatuses?: number[] } = {},
+  options: {
+    method?: string;
+    body?: unknown;
+    headers?: Record<string, string>;
+    acceptStatuses?: number[];
+  } = {},
 ): Promise<T> {
-  const { method = "GET", body, acceptStatuses = [] } = options;
+  const { method = "GET", body, headers = {}, acceptStatuses = [] } = options;
   const res = await fetch(path, {
     method,
-    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+    headers: body === undefined ? headers : { "Content-Type": "application/json", ...headers },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (res.ok || acceptStatuses.includes(res.status)) {

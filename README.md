@@ -2,7 +2,7 @@
 
 Evaluate multiple LLMs on the same versioned dataset, compare quality, latency, cost and failure rate, detect regressions against a baseline, and get an explainable model recommendation.
 
-Status: **Day 2 of 7** - dataset import, validation, immutable versioning, dataset UI.
+Status: **Day 3 of 7** - datasets and versioning, asynchronous runs with a Redis/RQ worker, runs UI.
 
 ## Stack
 
@@ -25,6 +25,16 @@ Postgres is published on host port **5433** (override with `POSTGRES_HOST_PORT`)
 
 `POST/GET /api/v1/datasets`, `GET /api/v1/datasets/{id}`, `POST/GET /api/v1/datasets/{id}/versions`, `GET /api/v1/datasets/{id}/versions/{n}`.
 Versions are immutable and carry a deterministic SHA-256 content hash; identical content returns `409`. Errors use `{code, message, details}`.
+
+## Runs API
+
+`POST /api/v1/runs` (202, optional `Idempotency-Key`), `GET /api/v1/runs`, `GET /api/v1/runs/{id}`, `POST /api/v1/runs/{id}/cancel`, `GET /api/v1/runs/{id}/results`, plus `GET /api/v1/models` and `/api/v1/evaluation-profiles`.
+
+- State machine: `queued -> running -> completed | completed_with_errors | failed | cancelled`; transitions are atomic compare-and-set updates.
+- Every (case, model) pair ends as `success`, `provider_error`, `timeout` or `skipped`. Only transient errors are retried, at most `MAX_RETRIES` times.
+- Server-side caps override client values: concurrency, cases, models per run, active runs, run duration.
+- Duplicate job delivery is a no-op; a `running` run whose worker died is resumed after `STALE_RUN_SECONDS`.
+- Demo models: `fast-model`, `accurate-model`, and `flaky-model` (deterministic timeouts and provider errors). Scoring arrives on Day 4.
 
 ## Local development without Docker
 

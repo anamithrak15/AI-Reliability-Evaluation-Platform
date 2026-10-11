@@ -4,11 +4,17 @@ import hashlib
 import json
 from dataclasses import dataclass
 
+from app.evaluation.errors import LLMProviderError, LLMTimeout
+
 MOCK_MODELS: dict[str, dict[str, float]] = {
     # error_every: every Nth case (by stable hash) is misclassified.
     "fast-model": {"latency_ms": 50, "error_every": 4},
     "accurate-model": {"latency_ms": 150, "error_every": 12},
+    "flaky-model": {"latency_ms": 100, "error_every": 6},
 }
+
+FLAKY_MODELS = {"flaky-model"}
+TIMEOUT_LATENCY_MS = 30_000
 
 _KEYWORDS = {
     "billing": ("charged", "invoice", "refund", "payment", "subscription"),
@@ -38,10 +44,35 @@ def _stable_int(value: str) -> int:
     return int(hashlib.sha256(value.encode()).hexdigest()[:8], 16)
 
 
-def generate(model_alias: str, case_key: str, prompt: str) -> MockResponse:
+def scenario_for(model_alias: str, case_key: str) -> str:
+    """ok | permanent_error | timeout | transient_then_ok, stable per (model, case)."""
+    if model_alias not in FLAKY_MODELS:
+        return "ok"
+    bucket = _stable_int(f"scenario:{model_alias}:{case_key}") % 8
+    return {0: "permanent_error", 1: "timeout", 2: "transient_then_ok", 3: "transient_then_ok"}.get(
+        bucket, "ok"
+    )
+
+
+def generate(model_alias: str, case_key: str, prompt: str, attempt: int = 1) -> MockResponse:
     if model_alias not in MOCK_MODELS:
         raise ValueError(f"unknown mock model: {model_alias}")
     cfg = MOCK_MODELS[model_alias]
+
+    scenario = scenario_for(model_alias, case_key)
+    if scenario == "permanent_error":
+        raise LLMProviderError(
+            "mock provider rejected the request",
+            code="mock_provider_error",
+            transient=False,
+            latency_ms=20,
+        )
+    if scenario == "timeout":
+        raise LLMTimeout(latency_ms=TIMEOUT_LATENCY_MS)
+    if scenario == "transient_then_ok" and attempt == 1:
+        raise LLMProviderError(
+            "mock provider rate limited", code="rate_limited", transient=True, latency_ms=10
+        )
 
     category = _classify(prompt)
     if _stable_int(f"{model_alias}:{case_key}") % int(cfg["error_every"]) == 0:

@@ -43,6 +43,23 @@ def db_engine():
 
 
 @pytest.fixture
+def session_factory(db_engine):
+    return sessionmaker(bind=db_engine, autoflush=False, expire_on_commit=False)
+
+
+@pytest.fixture
+def enqueued(monkeypatch):
+    calls = []
+    monkeypatch.setattr("app.services.run_service.enqueue_run", lambda run_id: calls.append(run_id))
+    return calls
+
+
+@pytest.fixture
+def no_backoff(monkeypatch):
+    monkeypatch.setattr(get_settings(), "retry_backoff_seconds", 0.0)
+
+
+@pytest.fixture
 def client(db_engine):
     factory = sessionmaker(bind=db_engine, autoflush=False, expire_on_commit=False)
 

@@ -15,6 +15,13 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     max_cases_per_dataset: int = 100
     max_request_bytes: int = 1_048_576
+    max_models_per_run: int = 3
+    max_concurrency_limit: int = 5
+    max_active_runs: int = 3
+    max_retries: int = 2
+    retry_backoff_seconds: float = 0.25
+    max_run_seconds: int = 300
+    stale_run_seconds: int = 900
     demo_dataset_path: str = str(
         Path(__file__).resolve().parents[3] / "datasets" / "demo_dataset.json"
     )

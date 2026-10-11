@@ -110,6 +110,7 @@ class EvaluationRun(Base):
     created_at: Mapped[datetime] = _ts()
     requested_by: Mapped[str | None] = mapped_column(String(100))
     error_summary: Mapped[str | None] = mapped_column(Text)
+    idempotency_key: Mapped[str | None] = mapped_column(String(100), unique=True)
 
 
 class CaseResult(Base):

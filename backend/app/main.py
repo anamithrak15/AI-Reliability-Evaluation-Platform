@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import datasets, health
+from app.api import catalog, datasets, health, runs
 from app.core.config import get_settings
 from app.core.errors import error_body, register_error_handlers
 from app.core.logging import configure_logging
@@ -63,3 +63,5 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 
 app.include_router(health.router)
 app.include_router(datasets.router)
+app.include_router(runs.router)
+app.include_router(catalog.router)
