@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -12,6 +13,11 @@ class Settings(BaseSettings):
     enable_live_llm: bool = False
     cors_origins: str = "http://localhost:3000"
     log_level: str = "INFO"
+    max_cases_per_dataset: int = 100
+    max_request_bytes: int = 1_048_576
+    demo_dataset_path: str = str(
+        Path(__file__).resolve().parents[3] / "datasets" / "demo_dataset.json"
+    )
 
     @property
     def cors_origin_list(self) -> list[str]:

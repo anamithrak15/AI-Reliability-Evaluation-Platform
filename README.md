@@ -2,7 +2,7 @@
 
 Evaluate multiple LLMs on the same versioned dataset, compare quality, latency, cost and failure rate, detect regressions against a baseline, and get an explainable model recommendation.
 
-Status: **Day 1 of 7** - scaffold, schema, health endpoints, worker skeleton, mock adapter.
+Status: **Day 2 of 7** - dataset import, validation, immutable versioning, dataset UI.
 
 ## Stack
 
@@ -18,7 +18,13 @@ docker compose --env-file .env -f infra/docker-compose.yml up --build
 - Frontend: http://localhost:3000
 - API: http://localhost:8000 (`/health`, `/ready`, `/docs`)
 
-The `api` container runs `alembic upgrade head` on start.
+The `api` container runs `alembic upgrade head` on start and seeds the demo dataset when `DEMO_MODE=true`.
+Postgres is published on host port **5433** (override with `POSTGRES_HOST_PORT`) to avoid clashing with a local install.
+
+## Dataset API
+
+`POST/GET /api/v1/datasets`, `GET /api/v1/datasets/{id}`, `POST/GET /api/v1/datasets/{id}/versions`, `GET /api/v1/datasets/{id}/versions/{n}`.
+Versions are immutable and carry a deterministic SHA-256 content hash; identical content returns `409`. Errors use `{code, message, details}`.
 
 ## Local development without Docker
 
@@ -26,6 +32,8 @@ The `api` container runs `alembic upgrade head` on start.
 cd backend
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
+# DB tests need Postgres; point at one (the database is created if missing):
+export TEST_DATABASE_URL=postgresql+psycopg://aireliability:change-me@localhost:5433/aireliability_test
 pytest
 ```
 

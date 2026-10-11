@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
       POSTGRES_DB: ${POSTGRES_DB:-aireliability}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -35,6 +35,9 @@ services:
       ENABLE_LIVE_LLM: ${ENABLE_LIVE_LLM:-false}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DEMO_DATASET_PATH: /datasets/demo_dataset.json
+    volumes:
+      - ../datasets:/datasets:ro
     ports:
       - "8000:8000"
     depends_on:

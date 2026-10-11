@@ -28,3 +28,13 @@ main {
 .bad {
   color: #b91c1c;
 }
+a { color: #1d4ed8; }
+.muted { color: #6b7280; }
+table { border-collapse: collapse; width: 100%; margin: 0.5rem 0 1rem; }
+th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+tr.selected { background: #eff6ff; }
+.card { border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.75rem 1rem; margin-top: 1.5rem; }
+textarea { display: block; width: 100%; box-sizing: border-box; margin: 0.5rem 0; font-family: monospace; }
+button { padding: 0.35rem 0.9rem; cursor: pointer; }
+button.link { background: none; border: none; color: #1d4ed8; padding: 0; text-decoration: underline; }
+ul.bad { padding-left: 1.2rem; }

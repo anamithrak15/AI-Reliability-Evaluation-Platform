@@ -12,6 +12,7 @@ dependencies = [
     "pydantic-settings>=2.3,<3",
     "redis>=5.0,<6",
     "rq>=1.16,<3",
+    "jsonschema>=4.22,<5",
 ]
 
 [project.optional-dependencies]
