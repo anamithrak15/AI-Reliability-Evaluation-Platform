@@ -1,0 +1,30 @@
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  color: #1a1a1a;
+}
+.layout {
+  display: flex;
+  min-height: 100vh;
+}
+.sidebar {
+  width: 220px;
+  background: #f3f4f6;
+  padding: 1rem;
+}
+main {
+  padding: 1.5rem 2rem;
+  flex: 1;
+}
+.banner {
+  background: #fef3c7;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  display: inline-block;
+}
+.good {
+  color: #15803d;
+}
+.bad {
+  color: #b91c1c;
+}
