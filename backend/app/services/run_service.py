@@ -7,12 +7,16 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.errors import AppError
 from app.evaluation import registry
+from app.evaluation.ranking import NOTE as _RANKING_NOTE
 from app.models import Dataset, DatasetVersion, EvaluationRun
 from app.models.entities import utcnow
 from app.repositories import run_repo
 from app.schemas.dataset import Page
+from app.schemas.comparison import ComparisonOut, RegressionsOut, ReportOut
 from app.schemas.run import CaseResultOut, Progress, RunCreate, RunOut
+from app.services import comparison_service
 from app.services.queue import enqueue_run
+from app.services.run_state import TERMINAL_STATES
 
 logger = logging.getLogger(__name__)
 
@@ -72,8 +76,15 @@ def create_run(session: Session, payload: RunCreate, idempotency_key: str | None
         )
     if payload.evaluation_profile not in registry.EVALUATION_PROFILES:
         raise AppError(400, "unknown_evaluation_profile", "Unknown evaluation profile")
-    if payload.baseline_run_id and run_repo.get_run(session, payload.baseline_run_id) is None:
-        raise AppError(404, "baseline_run_not_found", "Baseline run not found")
+    if payload.baseline_run_id:
+        comparison_service.validate_baseline(
+            session, payload.baseline_run_id,
+            {
+                "content_hash": version.content_hash,
+                "dataset_version_number": version.version_number,
+                "evaluation_profile": payload.evaluation_profile,
+            },
+        )
     if run_repo.count_active(session) >= settings.max_active_runs:
         raise AppError(429, "too_many_active_runs", "Too many runs are queued or running; try later")
 
@@ -122,6 +133,37 @@ def create_run(session: Session, payload: RunCreate, idempotency_key: str | None
         session.commit()
         raise AppError(503, "queue_unavailable", "Job queue is unavailable; run was not started") from None
     return get_run(session, run.id)
+
+
+def get_comparison(session: Session, run_id: UUID) -> ComparisonOut:
+    return comparison_service.get_comparison(session, _require_run(session, run_id))
+
+
+def get_regressions(session: Session, run_id: UUID) -> RegressionsOut:
+    return comparison_service.get_regressions(session, _require_run(session, run_id))
+
+
+def set_baseline(session: Session, run_id: UUID, baseline_run_id: UUID | None) -> RunOut:
+    run = _require_run(session, run_id)
+    if baseline_run_id is not None:
+        comparison_service.validate_baseline(session, baseline_run_id, run.config_snapshot, run.id)
+    run.baseline_run_id = baseline_run_id
+    session.commit()
+    if run.status in TERMINAL_STATES:
+        comparison_service.refresh_regressions(session, run)
+    return get_run(session, run.id)
+
+
+def get_report(session: Session, run_id: UUID) -> ReportOut:
+    run = _require_run(session, run_id)
+    comparison = comparison_service.get_comparison(session, run)
+    return ReportOut(
+        generated_at=utcnow(),
+        run=get_run(session, run.id),
+        comparison=comparison,
+        regressions=comparison_service.get_regressions(session, run),
+        note=_RANKING_NOTE,
+    )
 
 
 def cancel_run(session: Session, run_id: UUID) -> RunOut:

@@ -76,6 +76,11 @@ export default function RunDetailPage({ id }: { id: string }) {
       </p>
       {run.error_summary && <p className="bad">Issues: {run.error_summary}</p>}
       {ACTIVE_STATUSES.includes(run.status) && <button onClick={cancel}>Cancel run</button>}
+      {!ACTIVE_STATUSES.includes(run.status) && (
+        <p>
+          <a href={`#/runs/${run.id}/compare`}>Compare, baseline and recommendation &rarr;</a>
+        </p>
+      )}
       {error && <p className="bad">{error}</p>}
 
       <h3>Case results</h3>

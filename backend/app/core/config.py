@@ -18,6 +18,22 @@ class Settings(BaseSettings):
     # Per-run USD cap for each model; 0 disables. Only priced calls count toward it.
     live_budget_usd_per_model: float = 0.05
     live_budget_overrides: dict[str, float] = {}
+    # Regression thresholds: drops/rises are absolute fractions (0.03 = 3 points); p95/cost rises are relative.
+    regression_quality_drop: float = 0.03
+    regression_failure_rise: float = 0.02
+    regression_p95_rise_pct: float = 0.25
+    regression_cost_rise_pct: float = 0.20
+    regression_quality_floor: float = 0.5
+    regression_min_samples: int = 5
+    # Ranking constraints; 0 disables the optional ones.
+    rank_min_quality: float = 0.5
+    rank_max_failure_rate: float = 0.2
+    rank_max_p95_ms: float = 0
+    rank_max_cost_per_case_usd: float = 0
+    rank_min_samples: int = 5
+    rank_weight_quality: float = 0.60
+    rank_weight_latency: float = 0.25
+    rank_weight_cost: float = 0.15
     cors_origins: str = "http://localhost:3000"
     log_level: str = "INFO"
     max_cases_per_dataset: int = 100

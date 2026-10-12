@@ -114,6 +114,12 @@ def list_results(
     return rows, total
 
 
+def results_with_metrics(session: Session, run_id: UUID) -> list[tuple[CaseResult, dict[str, Decimal | None]]]:
+    results = session.scalars(select(CaseResult).where(CaseResult.run_id == run_id)).all()
+    metrics = metrics_for(session, [r.id for r in results])
+    return [(r, metrics[r.id]) for r in results]
+
+
 def metrics_for(session: Session, result_ids: list[UUID]) -> dict[UUID, dict[str, Decimal | None]]:
     out: dict[UUID, dict[str, Decimal | None]] = {rid: {} for rid in result_ids}
     if result_ids:

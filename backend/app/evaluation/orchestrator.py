@@ -20,6 +20,7 @@ from app.evaluation.llm_adapter import call_model
 from app.models import CaseMetric, CaseResult, EvaluationRun, TestCase
 from app.models.entities import utcnow
 from app.repositories import run_repo
+from app.services import comparison_service
 
 logger = logging.getLogger(__name__)
 
@@ -142,6 +143,16 @@ def _finalize(session: Session, run_id: UUID) -> None:
         session, run_id, {"running"}, final,
         completed_at=utcnow(), error_summary=problems or ("no_work" if total == 0 else None),
     )
+    # Derived data must never change the run outcome.
+    try:
+        session.expire_all()
+        run = run_repo.get_run(session, run_id)
+        comparison_service.store_summaries(session, run)
+        if run.baseline_run_id:
+            comparison_service.refresh_regressions(session, run)
+    except Exception:
+        session.rollback()
+        logger.exception("summary/regression computation failed", extra={"run_id": str(run_id)})
 
 
 def _process(session: Session, run_id: UUID, settings: Settings) -> None:

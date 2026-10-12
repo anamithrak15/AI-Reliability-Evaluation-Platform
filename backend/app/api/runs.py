@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Header, Query
 from sqlalchemy.orm import Session
 
 from app.db.database import get_session
+from app.schemas.comparison import BaselineSet, ComparisonOut, RegressionsOut, ReportOut
 from app.schemas.dataset import Page
 from app.schemas.run import CaseResultOut, RunCreate, RunOut
 from app.services import run_service
@@ -42,6 +43,28 @@ def get_run(run_id: UUID, session: Session = Depends(get_session)) -> RunOut:
 @router.post("/{run_id}/cancel")
 def cancel_run(run_id: UUID, session: Session = Depends(get_session)) -> RunOut:
     return run_service.cancel_run(session, run_id)
+
+
+@router.post("/{run_id}/baseline")
+def set_baseline(
+    run_id: UUID, payload: BaselineSet, session: Session = Depends(get_session)
+) -> RunOut:
+    return run_service.set_baseline(session, run_id, payload.baseline_run_id)
+
+
+@router.get("/{run_id}/comparison")
+def get_comparison(run_id: UUID, session: Session = Depends(get_session)) -> ComparisonOut:
+    return run_service.get_comparison(session, run_id)
+
+
+@router.get("/{run_id}/regressions")
+def get_regressions(run_id: UUID, session: Session = Depends(get_session)) -> RegressionsOut:
+    return run_service.get_regressions(session, run_id)
+
+
+@router.get("/{run_id}/report")
+def get_report(run_id: UUID, session: Session = Depends(get_session)) -> ReportOut:
+    return run_service.get_report(session, run_id)
 
 
 @router.get("/{run_id}/results")
