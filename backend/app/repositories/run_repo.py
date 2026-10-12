@@ -1,10 +1,11 @@
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-from app.models import CaseResult, EvaluationRun, TestCase
+from app.models import CaseMetric, CaseResult, EvaluationRun, TestCase
 from app.services.run_state import ACTIVE_STATES, assert_transition
 
 
@@ -111,3 +112,14 @@ def list_results(
     ).all()
     total = session.scalar(select(func.count()).select_from(CaseResult).where(*filters)) or 0
     return rows, total
+
+
+def metrics_for(session: Session, result_ids: list[UUID]) -> dict[UUID, dict[str, Decimal | None]]:
+    out: dict[UUID, dict[str, Decimal | None]] = {rid: {} for rid in result_ids}
+    if result_ids:
+        for rid, name, value in session.execute(
+            select(CaseMetric.case_result_id, CaseMetric.metric_name, CaseMetric.metric_value)
+            .where(CaseMetric.case_result_id.in_(result_ids))
+        ):
+            out[rid][name] = value
+    return out

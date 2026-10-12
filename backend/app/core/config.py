@@ -5,12 +5,19 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_ignore_empty=True)
 
     database_url: str = "postgresql+psycopg://aireliability:change-me@localhost:5432/aireliability"
     redis_url: str = "redis://localhost:6379/0"
     demo_mode: bool = True
     enable_live_llm: bool = False
+    # alias -> LiteLLM model string, e.g. {"gpt-mini": "openai/gpt-4o-mini"}; credentials stay in env.
+    live_models: dict[str, str] = {}
+    live_timeout_seconds: float = 30.0
+    live_max_output_tokens: int = 512
+    # Per-run USD cap for each model; 0 disables. Only priced calls count toward it.
+    live_budget_usd_per_model: float = 0.05
+    live_budget_overrides: dict[str, float] = {}
     cors_origins: str = "http://localhost:3000"
     log_level: str = "INFO"
     max_cases_per_dataset: int = 100

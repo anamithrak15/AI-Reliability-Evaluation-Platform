@@ -122,6 +122,7 @@ export default function RunDetailPage({ id }: { id: string }) {
               <th>Latency</th>
               <th>Tokens in/out</th>
               <th>Attempts</th>
+              <th>Quality</th>
               <th>Output / error</th>
             </tr>
           </thead>
@@ -138,6 +139,15 @@ export default function RunDetailPage({ id }: { id: string }) {
                   {r.input_tokens ?? "-"} / {r.output_tokens ?? "-"}
                 </td>
                 <td>{r.attempt_count}</td>
+                <td>
+                  {r.metrics.quality == null ? (
+                    "-"
+                  ) : Number(r.metrics.quality) === 1 ? (
+                    <span className="ok">pass</span>
+                  ) : (
+                    <span className="bad">fail ({Number(r.metrics.quality).toFixed(2)})</span>
+                  )}
+                </td>
                 <td>
                   {r.status === "success" ? (
                     <code>{String(r.output)}</code>

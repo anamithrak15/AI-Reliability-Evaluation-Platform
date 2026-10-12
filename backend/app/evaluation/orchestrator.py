@@ -1,9 +1,10 @@
 import logging
 import time
-from collections import deque
+from collections import defaultdict, deque
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from datetime import timedelta
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
@@ -14,8 +15,9 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.core.config import Settings, get_settings
 from app.core.security import redact
 from app.evaluation.errors import LLMError, LLMTimeout
+from app.evaluation.evaluators import Metric, evaluate
 from app.evaluation.llm_adapter import call_model
-from app.models import CaseResult, EvaluationRun, TestCase
+from app.models import CaseMetric, CaseResult, EvaluationRun, TestCase
 from app.models.entities import utcnow
 from app.repositories import run_repo
 
@@ -64,9 +66,22 @@ def call_with_retries(
             )
 
 
-def _persist(session: Session, run_id: UUID, test_case_id: UUID, alias: str, o: Outcome) -> None:
+def _score(case: TestCase | None, o: Outcome) -> list[Metric]:
+    if case is None or o.status != "success":
+        return []
+    try:
+        return evaluate(case.evaluation_config, case.expected_output, o.output)
+    except Exception as exc:  # a bad evaluator must not lose the model result
+        logger.exception("evaluator failed", extra={"case_key": case.case_key})
+        return [Metric("quality", None, {"reason": redact(f"{type(exc).__name__}: {exc}")})]
+
+
+def _persist(
+    session: Session, run_id: UUID, test_case_id: UUID, alias: str, o: Outcome,
+    case: TestCase | None = None,
+) -> None:
     # ON CONFLICT DO NOTHING keeps duplicate job delivery from creating duplicate rows.
-    session.execute(
+    result_id = session.scalar(
         pg_insert(CaseResult)
         .values(
             run_id=run_id, test_case_id=test_case_id, model_alias=alias, status=o.status,
@@ -76,7 +91,19 @@ def _persist(session: Session, run_id: UUID, test_case_id: UUID, alias: str, o: 
             attempt_count=o.attempts,
         )
         .on_conflict_do_nothing(index_elements=["run_id", "test_case_id", "model_alias"])
+        .returning(CaseResult.id)
     )
+    metrics = _score(case, o) if result_id else []
+    if metrics:
+        session.execute(
+            pg_insert(CaseMetric)
+            .values([
+                {"case_result_id": result_id, "metric_name": m.name,
+                 "metric_value": m.value, "metric_details": m.details}
+                for m in metrics
+            ])
+            .on_conflict_do_nothing(index_elements=["case_result_id", "metric_name"])
+        )
     session.commit()
 
 
@@ -138,6 +165,13 @@ def _process(session: Session, run_id: UUID, settings: Settings) -> None:
     pending = deque((c, m) for c in cases for m in models if (c.id, m) not in done)
 
     deadline = time.monotonic() + settings.max_run_seconds
+    spent: dict[str, Decimal] = defaultdict(Decimal)
+    for alias, cost in session.execute(
+        select(CaseResult.model_alias, func.coalesce(func.sum(CaseResult.estimated_cost_usd), 0))
+        .where(CaseResult.run_id == run_id)
+        .group_by(CaseResult.model_alias)
+    ):
+        spent[alias] = Decimal(cost)
     stop = _stop_reason(session, run_id, deadline)
     in_flight: dict[Future, tuple[TestCase, str]] = {}
 
@@ -145,6 +179,16 @@ def _process(session: Session, run_id: UUID, settings: Settings) -> None:
         while pending or in_flight:
             while pending and not stop and len(in_flight) < concurrency:
                 case, alias = pending.popleft()
+                budget = settings.live_budget_overrides.get(alias, settings.live_budget_usd_per_model)
+                if budget > 0 and spent[alias] >= Decimal(str(budget)):
+                    _persist(
+                        session, run_id, case.id, alias,
+                        Outcome(
+                            "skipped", error_code="budget_exceeded", attempts=0,
+                            error_message=f"model budget of ${budget} reached",
+                        ),
+                    )
+                    continue
                 fut = pool.submit(
                     call_with_retries, alias, case.case_key, case.input["messages"],
                     settings.max_retries, settings.retry_backoff_seconds,
@@ -155,7 +199,10 @@ def _process(session: Session, run_id: UUID, settings: Settings) -> None:
             finished, _ = wait(in_flight, timeout=1.0, return_when=FIRST_COMPLETED)
             for fut in finished:
                 case, alias = in_flight.pop(fut)
-                _persist(session, run_id, case.id, alias, fut.result())
+                outcome = fut.result()
+                if outcome.estimated_cost_usd is not None:
+                    spent[alias] += Decimal(outcome.estimated_cost_usd)
+                _persist(session, run_id, case.id, alias, outcome, case)
             stop = stop or _stop_reason(session, run_id, deadline)
 
     for case, alias in pending:

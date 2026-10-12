@@ -5,44 +5,62 @@
   "cases": [
     {
       "case_key": "billing-001",
-      "input": {"messages": [{"role": "user", "content": "I was charged twice for my subscription."}]},
+      "input": {"messages": [
+        {"role": "system", "content": "Classify the support ticket. Reply with only JSON: {\"category\": \"billing\" | \"account_access\" | \"technical\", \"priority\": \"low\" | \"medium\" | \"high\"}."},
+        {"role": "user", "content": "I was charged twice for my subscription."}
+      ]},
       "expected_output": {"category": "billing", "priority": "medium"},
-      "evaluation_config": {"type": "json_schema", "schema": {"type": "object", "required": ["category", "priority"], "properties": {"category": {"type": "string"}, "priority": {"type": "string"}}}},
+      "evaluation_config": {"type": "classification", "label_field": "category"},
       "tags": ["classification", "billing"]
     },
     {
       "case_key": "billing-002",
-      "input": {"messages": [{"role": "user", "content": "Please send me a refund for last month's invoice."}]},
+      "input": {"messages": [
+        {"role": "system", "content": "Classify the support ticket. Reply with only JSON: {\"category\": \"billing\" | \"account_access\" | \"technical\", \"priority\": \"low\" | \"medium\" | \"high\"}."},
+        {"role": "user", "content": "Please send me a refund for last month's invoice."}
+      ]},
       "expected_output": {"category": "billing", "priority": "medium"},
-      "evaluation_config": {"type": "json_schema", "schema": {"type": "object", "required": ["category", "priority"], "properties": {"category": {"type": "string"}, "priority": {"type": "string"}}}},
+      "evaluation_config": {"type": "classification", "label_field": "category"},
       "tags": ["classification", "billing"]
     },
     {
       "case_key": "access-001",
-      "input": {"messages": [{"role": "user", "content": "I forgot my password and cannot log in."}]},
+      "input": {"messages": [
+        {"role": "system", "content": "Classify the support ticket. Reply with only JSON: {\"category\": \"billing\" | \"account_access\" | \"technical\", \"priority\": \"low\" | \"medium\" | \"high\"}."},
+        {"role": "user", "content": "I forgot my password and cannot log in."}
+      ]},
       "expected_output": {"category": "account_access", "priority": "medium"},
-      "evaluation_config": {"type": "json_schema", "schema": {"type": "object", "required": ["category", "priority"], "properties": {"category": {"type": "string"}, "priority": {"type": "string"}}}},
+      "evaluation_config": {"type": "classification", "label_field": "category"},
       "tags": ["classification", "account_access"]
     },
     {
       "case_key": "access-002",
-      "input": {"messages": [{"role": "user", "content": "My account is locked after too many attempts."}]},
+      "input": {"messages": [
+        {"role": "system", "content": "Classify the support ticket. Reply with only JSON: {\"category\": \"billing\" | \"account_access\" | \"technical\", \"priority\": \"low\" | \"medium\" | \"high\"}."},
+        {"role": "user", "content": "My account is locked after too many attempts."}
+      ]},
       "expected_output": {"category": "account_access", "priority": "medium"},
-      "evaluation_config": {"type": "json_schema", "schema": {"type": "object", "required": ["category", "priority"], "properties": {"category": {"type": "string"}, "priority": {"type": "string"}}}},
+      "evaluation_config": {"type": "classification", "label_field": "category"},
       "tags": ["classification", "account_access"]
     },
     {
       "case_key": "technical-001",
-      "input": {"messages": [{"role": "user", "content": "The dashboard shows an error and keeps crashing."}]},
+      "input": {"messages": [
+        {"role": "system", "content": "Classify the support ticket. Reply with only JSON: {\"category\": \"billing\" | \"account_access\" | \"technical\", \"priority\": \"low\" | \"medium\" | \"high\"}."},
+        {"role": "user", "content": "The dashboard shows an error and keeps crashing."}
+      ]},
       "expected_output": {"category": "technical", "priority": "medium"},
-      "evaluation_config": {"type": "json_schema", "schema": {"type": "object", "required": ["category", "priority"], "properties": {"category": {"type": "string"}, "priority": {"type": "string"}}}},
+      "evaluation_config": {"type": "classification", "label_field": "category"},
       "tags": ["classification", "technical"]
     },
     {
       "case_key": "technical-002",
-      "input": {"messages": [{"role": "user", "content": "The export page is not loading for me."}]},
+      "input": {"messages": [
+        {"role": "system", "content": "Classify the support ticket. Reply with only JSON: {\"category\": \"billing\" | \"account_access\" | \"technical\", \"priority\": \"low\" | \"medium\" | \"high\"}."},
+        {"role": "user", "content": "The export page is not loading for me."}
+      ]},
       "expected_output": {"category": "technical", "priority": "medium"},
-      "evaluation_config": {"type": "json_schema", "schema": {"type": "object", "required": ["category", "priority"], "properties": {"category": {"type": "string"}, "priority": {"type": "string"}}}},
+      "evaluation_config": {"type": "classification", "label_field": "category"},
       "tags": ["classification", "technical"]
     }
   ]

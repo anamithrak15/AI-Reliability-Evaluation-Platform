@@ -38,6 +38,7 @@ textarea { display: block; width: 100%; box-sizing: border-box; margin: 0.5rem 0
 button { padding: 0.35rem 0.9rem; cursor: pointer; }
 button.link { background: none; border: none; color: #1d4ed8; padding: 0; text-decoration: underline; }
 ul.bad { padding-left: 1.2rem; }
+.ok { color: #15803d; }
 .badge { padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.8rem; background: #e5e7eb; }
 .badge-running { background: #dbeafe; color: #1d4ed8; }
 .badge-completed, .badge-success { background: #dcfce7; color: #15803d; }

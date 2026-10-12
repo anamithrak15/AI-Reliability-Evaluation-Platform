@@ -139,6 +139,7 @@ def list_results(
 ) -> Page[CaseResultOut]:
     _require_run(session, run_id)
     rows, total = run_repo.list_results(session, run_id, model_alias, status, limit, offset)
+    metrics = run_repo.metrics_for(session, [r.id for r, _ in rows])
     items = [
         CaseResultOut(
             id=r.id, test_case_id=r.test_case_id, case_key=case_key,
@@ -146,7 +147,7 @@ def list_results(
             latency_ms=r.latency_ms, input_tokens=r.input_tokens,
             output_tokens=r.output_tokens, estimated_cost_usd=r.estimated_cost_usd,
             error_code=r.error_code, error_message_redacted=r.error_message_redacted,
-            attempt_count=r.attempt_count, created_at=r.created_at,
+            attempt_count=r.attempt_count, metrics=metrics[r.id], created_at=r.created_at,
         )
         for r, case_key in rows
     ]

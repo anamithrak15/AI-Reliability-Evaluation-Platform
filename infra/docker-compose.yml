@@ -33,6 +33,12 @@ services:
       REDIS_URL: redis://redis:6379/0
       DEMO_MODE: ${DEMO_MODE:-true}
       ENABLE_LIVE_LLM: ${ENABLE_LIVE_LLM:-false}
+      LIVE_MODELS: ${LIVE_MODELS:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OLLAMA_API_BASE: ${OLLAMA_API_BASE:-http://host.docker.internal:11434}
+      LIVE_TIMEOUT_SECONDS: ${LIVE_TIMEOUT_SECONDS:-120}
+      LIVE_BUDGET_USD_PER_MODEL: ${LIVE_BUDGET_USD_PER_MODEL:-0.05}
+      LIVE_BUDGET_OVERRIDES: ${LIVE_BUDGET_OVERRIDES:-}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DEMO_DATASET_PATH: /datasets/demo_dataset.json

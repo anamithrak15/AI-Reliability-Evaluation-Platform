@@ -43,6 +43,7 @@ export interface CaseResult {
   error_code: string | null;
   error_message_redacted: string | null;
   attempt_count: number;
+  metrics: Record<string, string | null>;
 }
 
 export interface ModelInfo {

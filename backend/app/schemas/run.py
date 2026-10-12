@@ -64,6 +64,7 @@ class CaseResultOut(BaseModel):
     error_code: str | None
     error_message_redacted: str | None
     attempt_count: int
+    metrics: dict[str, Decimal | None] = Field(default_factory=dict)
     created_at: datetime
 
 

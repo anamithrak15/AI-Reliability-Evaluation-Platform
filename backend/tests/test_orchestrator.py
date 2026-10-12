@@ -1,12 +1,12 @@
 from datetime import timedelta
 from uuid import UUID
 
-from sqlalchemy import delete, update
+from sqlalchemy import delete, func, select, update
 
 import app.evaluation.orchestrator as orch
 from app.core.config import get_settings
 from app.evaluation.mock_adapter import scenario_for
-from app.models import CaseResult, EvaluationRun
+from app.models import CaseMetric, CaseResult, EvaluationRun
 from app.models.entities import utcnow
 from app.repositories import run_repo
 from tests.test_runs_api import RUNS, make_version, start_run
@@ -71,7 +71,9 @@ def test_stale_running_run_resumes_without_duplicates(client, enqueued, session_
             .values(status="running", completed_at=None, started_at=utcnow() - timedelta(hours=2))
         )
         victims = s.query(CaseResult.id).filter(CaseResult.run_id == UUID(run_id)).limit(3).all()
-        s.execute(delete(CaseResult).where(CaseResult.id.in_([v[0] for v in victims])))
+        ids = [v[0] for v in victims]
+        s.execute(delete(CaseMetric).where(CaseMetric.case_result_id.in_(ids)))
+        s.execute(delete(CaseResult).where(CaseResult.id.in_(ids)))
         s.commit()
 
     orch.execute_run(session_factory, UUID(run_id))
@@ -151,3 +153,45 @@ def test_results_filtering_and_pagination(client, enqueued, session_factory, no_
     assert timeouts["total"] == 1
     page = client.get(f"{RUNS}/{run_id}/results", params={"limit": 3, "offset": 6}).json()
     assert page["total"] == 8 and len(page["items"]) == 2
+
+
+def test_successful_results_are_scored_and_failures_are_not(client, enqueued, session_factory, no_backoff):
+    run_id = _run(client, session_factory)
+    items = _results(client, run_id)
+    for r in items:
+        if r["status"] == "success":
+            assert float(r["metrics"]["quality"]) in (0.0, 1.0)
+            assert r["metrics"]["quality"] == r["metrics"]["accuracy"]
+        else:
+            assert r["metrics"] == {}
+    orch.execute_run(session_factory, UUID(run_id))  # redelivery must not duplicate metrics
+    with session_factory() as s:
+        n_metrics = s.scalar(select(func.count()).select_from(CaseMetric))
+    assert n_metrics == 2 * sum(r["status"] == "success" for r in items)
+
+
+def test_per_model_budget_skips_only_the_model_that_exceeded_it(
+    client, enqueued, session_factory, no_backoff, monkeypatch
+):
+    from decimal import Decimal
+
+    from app.evaluation.llm_adapter import LLMResult
+
+    def priced(alias, case_key, messages, attempt):
+        cost = Decimal("0.03") if alias == "fast-model" else None
+        return LLMResult('{"category": "billing"}', 10, 5, 5, cost)
+
+    monkeypatch.setattr(orch, "call_model", priced)
+    monkeypatch.setattr(get_settings(), "live_budget_usd_per_model", 0.05)
+    version_id = make_version(client, n_cases=5)
+    run_id = start_run(
+        client, version_id, model_aliases=["fast-model", "accurate-model"], max_concurrency=1
+    ).json()["id"]
+    orch.execute_run(session_factory, UUID(run_id))
+
+    items = _results(client, run_id)
+    fast = [r for r in items if r["model_alias"] == "fast-model"]
+    assert sorted(r["status"] for r in fast) == ["skipped"] * 3 + ["success"] * 2
+    assert {r["error_code"] for r in fast if r["status"] == "skipped"} == {"budget_exceeded"}
+    assert all(r["status"] == "success" for r in items if r["model_alias"] == "accurate-model")
+    assert client.get(f"{RUNS}/{run_id}").json()["status"] == "completed_with_errors"
