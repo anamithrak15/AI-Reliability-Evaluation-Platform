@@ -46,6 +46,15 @@ export interface CaseResult {
   metrics: Record<string, string | null>;
 }
 
+export interface CaseDetail {
+  case_key: string;
+  input: { messages: { role: string; content: string }[] };
+  expected_output: Record<string, unknown> | null;
+  evaluation_config: { type: string } & Record<string, unknown>;
+  tags: string[];
+  results: CaseResult[];
+}
+
 export interface ModelInfo {
   alias: string;
   provider: string;

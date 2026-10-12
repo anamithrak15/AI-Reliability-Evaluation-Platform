@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
-import { ApiError } from "../api/client";
+import { useCallback, useEffect, useState } from "react";
+import { ApiError, describeError } from "../api/client";
 import { listDatasets, listVersions } from "../api/datasets";
 import { createRun, listModels, listProfiles } from "../api/runs";
 import type { DatasetSummary, VersionSummary } from "../types/dataset";
 import type { EvaluationProfile, ModelInfo } from "../types/run";
+import { ErrorMessage, Loading } from "./StateViews";
 
 export default function NewRunForm() {
   const [datasets, setDatasets] = useState<DatasetSummary[]>([]);
@@ -17,24 +18,34 @@ export default function NewRunForm() {
   const [concurrency, setConcurrency] = useState(3);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadOptions = useCallback(() => {
+    setLoadError(null);
     Promise.all([listDatasets(), listModels(), listProfiles()])
       .then(([d, m, p]) => {
         setDatasets(d.items);
         setModels(m);
         setProfiles(p);
         if (d.items[0]) setDatasetId(d.items[0].id);
+        setLoaded(true);
       })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load options"));
+      .catch((e: unknown) => setLoadError(describeError(e)));
   }, []);
 
   useEffect(() => {
+    loadOptions();
+  }, [loadOptions]);
+
+  useEffect(() => {
     if (!datasetId) return;
-    listVersions(datasetId).then((vs) => {
-      setVersions(vs);
-      setVersionId(vs[0]?.id ?? "");
-    });
+    listVersions(datasetId)
+      .then((vs) => {
+        setVersions(vs);
+        setVersionId(vs[0]?.id ?? "");
+      })
+      .catch((e: unknown) => setError(describeError(e)));
   }, [datasetId]);
 
   const toggle = (alias: string) =>
@@ -65,9 +76,10 @@ export default function NewRunForm() {
   return (
     <div className="card">
       <h3>Start a run</h3>
-      {datasets.length === 0 ? (
-        <p className="muted">Create a dataset first.</p>
-      ) : (
+      {loadError && <ErrorMessage message={loadError} onRetry={loadOptions} />}
+      {!loaded && !loadError && <Loading what="Loading options" />}
+      {loaded && datasets.length === 0 && <p className="muted">Create a dataset first.</p>}
+      {loaded && datasets.length > 0 && (
         <>
           <p>
             <label>

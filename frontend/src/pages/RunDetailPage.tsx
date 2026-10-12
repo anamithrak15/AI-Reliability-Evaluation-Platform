@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cancelRun, getRun, listResults } from "../api/runs";
 import { ProgressBar, StatusBadge } from "../components/RunStatus";
+import { Empty, ErrorMessage, Loading } from "../components/StateViews";
 import type { Page } from "../types/dataset";
 import { ACTIVE_STATUSES, type CaseResult, type Run } from "../types/run";
 
@@ -51,7 +52,7 @@ export default function RunDetailPage({ id }: { id: string }) {
     }
   }
 
-  if (!run) return error ? <p className="bad">{error}</p> : <p>Loading...</p>;
+  if (!run) return error ? <ErrorMessage message={error} onRetry={load} /> : <Loading what="Loading run" />;
 
   return (
     <>
@@ -75,13 +76,21 @@ export default function RunDetailPage({ id }: { id: string }) {
           .join(" | ") || "no results yet"}
       </p>
       {run.error_summary && <p className="bad">Issues: {run.error_summary}</p>}
+      {(run.status === "completed_with_errors" || run.status === "failed") && (
+        <p className="bad" role="alert">
+          {run.status === "failed"
+            ? "No model call succeeded in this run."
+            : "Partial failure: some model calls did not succeed. Successful results below are still valid."}{" "}
+          Filter by status to see the failed cases.
+        </p>
+      )}
       {ACTIVE_STATUSES.includes(run.status) && <button onClick={cancel}>Cancel run</button>}
       {!ACTIVE_STATUSES.includes(run.status) && (
         <p>
           <a href={`#/runs/${run.id}/compare`}>Compare, baseline and recommendation &rarr;</a>
         </p>
       )}
-      {error && <p className="bad">{error}</p>}
+      {error && <ErrorMessage message={error} onRetry={load} />}
 
       <h3>Case results</h3>
       <p>
@@ -116,7 +125,9 @@ export default function RunDetailPage({ id }: { id: string }) {
           </select>
         </label>
       </p>
-      {results && results.items.length === 0 && <p className="muted">No results to show.</p>}
+      {results && results.items.length === 0 && (
+        <Empty>{ACTIVE_STATUSES.includes(run.status) ? "Waiting for the first results..." : "No results match these filters."}</Empty>
+      )}
       {results && results.items.length > 0 && (
         <table>
           <thead>
@@ -134,7 +145,9 @@ export default function RunDetailPage({ id }: { id: string }) {
           <tbody>
             {results.items.map((r) => (
               <tr key={r.id}>
-                <td>{r.case_key}</td>
+                <td>
+                  <a href={`#/runs/${run.id}/cases/${encodeURIComponent(r.case_key)}`}>{r.case_key}</a>
+                </td>
                 <td>{r.model_alias}</td>
                 <td>
                   <StatusBadge status={r.status} />

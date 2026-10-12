@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     rank_weight_cost: float = 0.15
     cors_origins: str = "http://localhost:3000"
     log_level: str = "INFO"
+    # Per client address; 0 disables a bucket. Run creation is the costly call, so it is limited harder.
+    rate_limit_enabled: bool = True
+    rate_limit_window_seconds: int = 60
+    rate_limit_per_window: int = 240
+    rate_limit_run_creates_per_window: int = 10
     max_cases_per_dataset: int = 100
     max_request_bytes: int = 1_048_576
     max_models_per_run: int = 3

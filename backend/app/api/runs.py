@@ -1,13 +1,13 @@
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Query
+from fastapi import APIRouter, Depends, Header, Path, Query
 from sqlalchemy.orm import Session
 
 from app.db.database import get_session
 from app.schemas.comparison import BaselineSet, ComparisonOut, RegressionsOut, ReportOut
 from app.schemas.dataset import Page
-from app.schemas.run import CaseResultOut, RunCreate, RunOut
+from app.schemas.run import CaseDetailOut, CaseResultOut, RunCreate, RunOut
 from app.services import run_service
 
 router = APIRouter(prefix="/api/v1/runs", tags=["runs"])
@@ -65,6 +65,15 @@ def get_regressions(run_id: UUID, session: Session = Depends(get_session)) -> Re
 @router.get("/{run_id}/report")
 def get_report(run_id: UUID, session: Session = Depends(get_session)) -> ReportOut:
     return run_service.get_report(session, run_id)
+
+
+@router.get("/{run_id}/cases/{case_key}")
+def get_case_detail(
+    run_id: UUID,
+    case_key: str = Path(min_length=1, max_length=200),
+    session: Session = Depends(get_session),
+) -> CaseDetailOut:
+    return run_service.get_case_detail(session, run_id, case_key)
 
 
 @router.get("/{run_id}/results")

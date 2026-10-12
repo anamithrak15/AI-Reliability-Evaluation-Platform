@@ -47,12 +47,24 @@ export async function request<T>(
   } catch {
     // non-JSON error body
   }
+  // The dev/preview proxy answers with a bodiless 5xx when the backend is down.
+  const unreachable = envelope.message === undefined && res.status >= 500 && res.status <= 504;
   throw new ApiError(
     res.status,
-    envelope.code ?? "http_error",
-    envelope.message ?? `Request failed with status ${res.status}`,
+    envelope.code ?? (unreachable ? "api_unreachable" : "http_error"),
+    envelope.message ??
+      (unreachable
+        ? `Cannot reach the API (status ${res.status}). Check that the backend is running, then retry.`
+        : `Request failed with status ${res.status}`),
     envelope.details ?? [],
   );
+}
+
+export function describeError(e: unknown): string {
+  if (e instanceof ApiError) {
+    return e.details.length ? `${e.message}: ${e.details.map((d) => d.message).join("; ")}` : e.message;
+  }
+  return e instanceof Error ? e.message : "Request failed";
 }
 
 export const checkHealth = () => request<HealthResponse>("/health");

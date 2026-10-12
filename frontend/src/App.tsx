@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { listModels } from "./api/runs";
+import { ErrorBoundary } from "./components/StateViews";
+import CaseInspectionPage from "./pages/CaseInspectionPage";
 import ComparisonPage from "./pages/ComparisonPage";
 import DatasetDetailPage from "./pages/DatasetDetailPage";
 import DatasetsPage from "./pages/DatasetsPage";
@@ -17,19 +19,31 @@ function useHash(): string {
   return hash;
 }
 
-function Route({ hash }: { hash: string }) {
-  const detail = hash.match(/^#\/datasets\/([0-9a-fA-F-]{36})$/);
-  if (detail) return <DatasetDetailPage key={detail[1]} id={detail[1]} />;
-  const compare = hash.match(/^#\/runs\/([0-9a-fA-F-]{36})\/compare$/);
+const UUID = "([0-9a-fA-F-]{36})";
+
+export function Route({ hash }: { hash: string }) {
+  const dataset = hash.match(new RegExp(`^#/datasets/${UUID}$`));
+  if (dataset) return <DatasetDetailPage key={dataset[1]} id={dataset[1]} />;
+  const compare = hash.match(new RegExp(`^#/runs/${UUID}/compare$`));
   if (compare) return <ComparisonPage key={compare[1]} id={compare[1]} />;
-  const run = hash.match(/^#\/runs\/([0-9a-fA-F-]{36})$/);
+  const inspect = hash.match(new RegExp(`^#/runs/${UUID}/cases/([A-Za-z0-9._-]{1,200})$`));
+  if (inspect) return <CaseInspectionPage key={hash} runId={inspect[1]} caseKey={inspect[2]} />;
+  const run = hash.match(new RegExp(`^#/runs/${UUID}$`));
   if (run) return <RunDetailPage key={run[1]} id={run[1]} />;
   if (hash === "#/runs") return <RunsPage />;
   if (hash === "#/status") return <StatusPage />;
-  return <DatasetsPage />;
+  if (hash === "#/datasets" || hash === "#/" || hash === "#") return <DatasetsPage />;
+  return (
+    <>
+      <h1>Page not found</h1>
+      <p>
+        There is nothing at <code>{hash}</code>. <a href="#/datasets">Go to datasets</a>.
+      </p>
+    </>
+  );
 }
 
-function Banner() {
+export function Banner() {
   const [live, setLive] = useState<string[]>([]);
   useEffect(() => {
     listModels()
@@ -49,22 +63,26 @@ export default function App() {
     <div className="layout">
       <aside className="sidebar">
         <h2>AI Reliability</h2>
-        <ul>
-          <li>
-            <a href="#/datasets">Datasets</a>
-          </li>
-          <li>
-            <a href="#/runs">Runs</a>
-          </li>
-          <li className="muted">Comparisons: open a finished run</li>
-          <li>
-            <a href="#/status">System status</a>
-          </li>
-        </ul>
+        <nav aria-label="Main">
+          <ul>
+            <li>
+              <a href="#/datasets">Datasets</a>
+            </li>
+            <li>
+              <a href="#/runs">Runs</a>
+            </li>
+            <li className="muted">Comparisons: open a finished run</li>
+            <li>
+              <a href="#/status">System status</a>
+            </li>
+          </ul>
+        </nav>
       </aside>
       <main>
         <Banner />
-        <Route hash={hash} />
+        <ErrorBoundary key={hash}>
+          <Route hash={hash} />
+        </ErrorBoundary>
       </main>
     </div>
   );

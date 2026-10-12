@@ -47,6 +47,12 @@ def session_factory(db_engine):
     return sessionmaker(bind=db_engine, autoflush=False, expire_on_commit=False)
 
 
+@pytest.fixture(autouse=True)
+def _no_rate_limit(monkeypatch):
+    # Tests must not depend on a shared Redis counter; rate-limit tests opt back in.
+    monkeypatch.setattr(get_settings(), "rate_limit_enabled", False)
+
+
 @pytest.fixture
 def enqueued(monkeypatch):
     calls = []

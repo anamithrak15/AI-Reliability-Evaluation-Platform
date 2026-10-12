@@ -13,7 +13,7 @@ from app.models.entities import utcnow
 from app.repositories import run_repo
 from app.schemas.dataset import Page
 from app.schemas.comparison import ComparisonOut, RegressionsOut, ReportOut
-from app.schemas.run import CaseResultOut, Progress, RunCreate, RunOut
+from app.schemas.run import CaseDetailOut, CaseResultOut, Progress, RunCreate, RunOut
 from app.services import comparison_service
 from app.services.queue import enqueue_run
 from app.services.run_state import TERMINAL_STATES
@@ -176,21 +176,36 @@ def cancel_run(session: Session, run_id: UUID) -> RunOut:
     return get_run(session, run_id)
 
 
+def _result_out(r, case_key: str, metrics: dict) -> CaseResultOut:
+    return CaseResultOut(
+        id=r.id, test_case_id=r.test_case_id, case_key=case_key,
+        model_alias=r.model_alias, status=r.status, output=r.output,
+        latency_ms=r.latency_ms, input_tokens=r.input_tokens,
+        output_tokens=r.output_tokens, estimated_cost_usd=r.estimated_cost_usd,
+        error_code=r.error_code, error_message_redacted=r.error_message_redacted,
+        attempt_count=r.attempt_count, metrics=metrics, created_at=r.created_at,
+    )
+
+
 def list_results(
     session: Session, run_id: UUID, model_alias: str | None, status: str | None, limit: int, offset: int
 ) -> Page[CaseResultOut]:
     _require_run(session, run_id)
     rows, total = run_repo.list_results(session, run_id, model_alias, status, limit, offset)
     metrics = run_repo.metrics_for(session, [r.id for r, _ in rows])
-    items = [
-        CaseResultOut(
-            id=r.id, test_case_id=r.test_case_id, case_key=case_key,
-            model_alias=r.model_alias, status=r.status, output=r.output,
-            latency_ms=r.latency_ms, input_tokens=r.input_tokens,
-            output_tokens=r.output_tokens, estimated_cost_usd=r.estimated_cost_usd,
-            error_code=r.error_code, error_message_redacted=r.error_message_redacted,
-            attempt_count=r.attempt_count, metrics=metrics[r.id], created_at=r.created_at,
-        )
-        for r, case_key in rows
-    ]
+    items = [_result_out(r, case_key, metrics[r.id]) for r, case_key in rows]
     return Page(items=items, total=total, limit=limit, offset=offset)
+
+
+def get_case_detail(session: Session, run_id: UUID, case_key: str) -> CaseDetailOut:
+    run = _require_run(session, run_id)
+    case = run_repo.get_case(session, run.dataset_version_id, case_key)
+    if case is None:
+        raise AppError(404, "case_not_found", "Case not found in this run's dataset version")
+    results = run_repo.case_results(session, run_id, case.id)
+    metrics = run_repo.metrics_for(session, [r.id for r in results])
+    return CaseDetailOut(
+        case_key=case.case_key, input=case.input, expected_output=case.expected_output,
+        evaluation_config=case.evaluation_config, tags=case.tags,
+        results=[_result_out(r, case.case_key, metrics[r.id]) for r in results],
+    )

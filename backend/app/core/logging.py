@@ -2,6 +2,10 @@ import json
 import logging
 import sys
 
+from app.core.request_context import request_id_var
+
+_EXTRA_KEYS = ("run_id", "case_id", "method", "path", "status", "duration_ms")
+
 
 class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
@@ -11,7 +15,10 @@ class JsonFormatter(logging.Formatter):
             "logger": record.name,
             "message": record.getMessage(),
         }
-        for key in ("request_id", "run_id", "case_id"):
+        request_id = getattr(record, "request_id", None) or request_id_var.get()
+        if request_id:
+            payload["request_id"] = request_id
+        for key in _EXTRA_KEYS:
             if hasattr(record, key):
                 payload[key] = getattr(record, key)
         return json.dumps(payload)

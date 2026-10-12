@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createDataset, listDatasets } from "../api/datasets";
 import ImportForm from "../components/ImportForm";
+import { Empty, ErrorMessage, Loading } from "../components/StateViews";
 import type { DatasetSummary } from "../types/dataset";
 
 export default function DatasetsPage() {
@@ -18,9 +19,9 @@ export default function DatasetsPage() {
   return (
     <>
       <h1>Datasets</h1>
-      {error && <p className="bad">{error}</p>}
-      {!datasets && !error && <p>Loading...</p>}
-      {datasets && datasets.length === 0 && <p>No datasets yet. Import one below.</p>}
+      {error && <ErrorMessage message={error} onRetry={load} />}
+      {!datasets && !error && <Loading what="Loading datasets" />}
+      {datasets && datasets.length === 0 && <Empty>No datasets yet. Import one below.</Empty>}
       {datasets && datasets.length > 0 && (
         <table>
           <thead>

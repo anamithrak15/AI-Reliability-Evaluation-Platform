@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { listRuns } from "../api/runs";
 import NewRunForm from "../components/NewRunForm";
 import { ProgressBar, StatusBadge } from "../components/RunStatus";
+import { Empty, ErrorMessage, Loading } from "../components/StateViews";
 import { ACTIVE_STATUSES, type Run } from "../types/run";
 
 export default function RunsPage() {
@@ -28,9 +29,11 @@ export default function RunsPage() {
   return (
     <>
       <h1>Runs</h1>
-      {error && <p className="bad">{error}</p>}
-      {!runs && !error && <p>Loading...</p>}
-      {runs && runs.length === 0 && <p>No runs yet. Start one below.</p>}
+      {error && <ErrorMessage message={error} onRetry={load} />}
+      {!runs && !error && <Loading what="Loading runs" />}
+      {runs && runs.length === 0 && (
+        <Empty>No runs yet. Pick a dataset and models below and click Start run; then open the run and use Compare.</Empty>
+      )}
       {runs && runs.length > 0 && (
         <table>
           <thead>

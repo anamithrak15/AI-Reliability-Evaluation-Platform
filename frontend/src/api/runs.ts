@@ -1,6 +1,6 @@
 import { request } from "./client";
 import type { Page } from "../types/dataset";
-import type { CaseResult, EvaluationProfile, ModelInfo, Run } from "../types/run";
+import type { CaseDetail, CaseResult, EvaluationProfile, ModelInfo, Run } from "../types/run";
 
 export const listModels = () => request<ModelInfo[]>("/api/v1/models");
 export const listProfiles = () => request<EvaluationProfile[]>("/api/v1/evaluation-profiles");
@@ -23,6 +23,9 @@ export const createRun = (payload: {
   });
 
 export const cancelRun = (id: string) => request<Run>(`/api/v1/runs/${id}/cancel`, { method: "POST" });
+
+export const getCaseDetail = (id: string, caseKey: string) =>
+  request<CaseDetail>(`/api/v1/runs/${id}/cases/${encodeURIComponent(caseKey)}`);
 
 export function listResults(
   id: string,

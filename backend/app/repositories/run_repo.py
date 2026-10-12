@@ -114,6 +114,24 @@ def list_results(
     return rows, total
 
 
+def get_case(session: Session, dataset_version_id: UUID, case_key: str) -> TestCase | None:
+    return session.scalar(
+        select(TestCase).where(
+            TestCase.dataset_version_id == dataset_version_id, TestCase.case_key == case_key
+        )
+    )
+
+
+def case_results(session: Session, run_id: UUID, test_case_id: UUID) -> list[CaseResult]:
+    return list(
+        session.scalars(
+            select(CaseResult)
+            .where(CaseResult.run_id == run_id, CaseResult.test_case_id == test_case_id)
+            .order_by(CaseResult.model_alias)
+        )
+    )
+
+
 def results_with_metrics(session: Session, run_id: UUID) -> list[tuple[CaseResult, dict[str, Decimal | None]]]:
     results = session.scalars(select(CaseResult).where(CaseResult.run_id == run_id)).all()
     metrics = metrics_for(session, [r.id for r in results])

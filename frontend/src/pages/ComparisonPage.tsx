@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { ApiError } from "../api/client";
+import { describeError } from "../api/client";
 import { getComparison, getRegressions, setBaseline } from "../api/comparison";
 import { getRun, listRuns } from "../api/runs";
 import { StatusBadge } from "../components/RunStatus";
+import { ErrorMessage, Loading } from "../components/StateViews";
 import type { Comparison, Regressions } from "../types/comparison";
 import type { Run } from "../types/run";
 
@@ -10,11 +11,6 @@ const fmt = (v: number | null, digits = 2, unit = "") => (v === null ? "-" : `${
 const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
 const usd = (v: number | null) => (v === null ? "unavailable" : `$${v.toFixed(6)}`);
 const BASELINE_OK = ["completed", "completed_with_errors"];
-
-function describe(e: unknown): string {
-  if (e instanceof ApiError && e.details.length) return `${e.message}: ${e.details.map((d) => d.message).join("; ")}`;
-  return e instanceof Error ? e.message : "Request failed";
-}
 
 export default function ComparisonPage({ id }: { id: string }) {
   const [run, setRun] = useState<Run | null>(null);
@@ -36,7 +32,7 @@ export default function ComparisonPage({ id }: { id: string }) {
       setCandidates(runs.items.filter((x) => x.id !== id && BASELINE_OK.includes(x.status)));
       setError(null);
     } catch (e) {
-      setError(describe(e));
+      setError(describeError(e));
     }
   }, [id]);
 
@@ -50,7 +46,7 @@ export default function ComparisonPage({ id }: { id: string }) {
       await setBaseline(id, baselineId);
       await load();
     } catch (e) {
-      setNotice(describe(e));
+      setNotice(describeError(e));
     }
   }
 
@@ -60,11 +56,11 @@ export default function ComparisonPage({ id }: { id: string }) {
         <p>
           <a href={`#/runs/${id}`}>&larr; Run</a>
         </p>
-        <p className="bad">{error}</p>
+        <ErrorMessage message={error} onRetry={load} />
       </>
     );
   }
-  if (!run || !comparison || !regressions) return <p>Loading...</p>;
+  if (!run || !comparison || !regressions) return <Loading />;
 
   const rank = comparison.ranking;
   const baseline = candidates.find((c) => c.id === run.baseline_run_id);
@@ -105,7 +101,7 @@ export default function ComparisonPage({ id }: { id: string }) {
                 {m.skipped > 0 && <span className="muted"> (+{m.skipped} skipped)</span>}
               </td>
               <td>{pct(m.success_rate)}</td>
-              <td>{pct(m.failure_rate)}</td>
+              <td className={m.failure_rate > 0 ? "bad" : undefined}>{pct(m.failure_rate)}</td>
               <td>
                 {fmt(m.quality_score, 3)} <span className="muted">n={m.quality_n}</span>
               </td>

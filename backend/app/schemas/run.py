@@ -68,6 +68,15 @@ class CaseResultOut(BaseModel):
     created_at: datetime
 
 
+class CaseDetailOut(BaseModel):
+    case_key: str
+    input: dict[str, Any]
+    expected_output: dict[str, Any] | None
+    evaluation_config: dict[str, Any]
+    tags: list[str]
+    results: list[CaseResultOut]
+
+
 class ModelOut(BaseModel):
     alias: str
     provider: str
