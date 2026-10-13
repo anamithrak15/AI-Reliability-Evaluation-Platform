@@ -3,6 +3,7 @@ import { listModels } from "./api/runs";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { ErrorBoundary, Loading } from "./components/StateViews";
 import AuthPage from "./pages/AuthPage";
+import { AccountPage, ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from "./pages/AccountPages";
 import CaseInspectionPage from "./pages/CaseInspectionPage";
 import ComparisonPage from "./pages/ComparisonPage";
 import DatasetDetailPage from "./pages/DatasetDetailPage";
@@ -23,7 +24,25 @@ function useHash(): string {
 
 const UUID = "([0-9a-fA-F-]{36})";
 
+// Emailed links look like #/reset-password?token=...; the token stays in the fragment, never sent to a server.
+function splitHash(hash: string): { path: string; token: string } {
+  const [path, query = ""] = hash.split("?");
+  return { path, token: new URLSearchParams(query).get("token") ?? "" };
+}
+
+/** Pages that work without a session; null for any other route. */
+function publicPage(hash: string) {
+  const { path, token } = splitHash(hash);
+  if (path === "#/forgot-password") return <ForgotPasswordPage />;
+  if (path === "#/reset-password") return <ResetPasswordPage token={token} />;
+  if (path === "#/verify-email") return <VerifyEmailPage token={token} />;
+  return null;
+}
+
 export function Route({ hash }: { hash: string }) {
+  const shared = publicPage(hash);
+  if (shared) return shared;
+  if (hash === "#/account") return <AccountPage />;
   const dataset = hash.match(new RegExp(`^#/datasets/${UUID}$`));
   if (dataset) return <DatasetDetailPage key={dataset[1]} id={dataset[1]} />;
   const compare = hash.match(new RegExp(`^#/runs/${UUID}/compare$`));
@@ -91,7 +110,9 @@ export function Shell() {
       <div className="layout">
         <main>
           <h2>AI Reliability</h2>
-          <AuthPage key={hash} mode={hash === "#/register" ? "register" : "login"} notice={state.notice} />
+          {publicPage(hash) ?? (
+            <AuthPage key={hash} mode={hash === "#/register" ? "register" : "login"} notice={state.notice} />
+          )}
         </main>
       </div>
     );
@@ -113,6 +134,9 @@ export function Shell() {
             <li>
               <a href="#/status">System status</a>
             </li>
+            <li>
+              <a href="#/account">Account</a>
+            </li>
           </ul>
         </nav>
         <p className="muted account">
@@ -122,6 +146,11 @@ export function Shell() {
       </aside>
       <main>
         <Banner />
+        {state.user.email_verified_at === null && (
+          <p className="banner">
+            Your email address is not verified. <a href="#/account">Resend the verification email</a>.
+          </p>
+        )}
         <ErrorBoundary key={hash}>{authPage ? <Loading /> : <Route hash={hash} />}</ErrorBoundary>
       </main>
     </div>

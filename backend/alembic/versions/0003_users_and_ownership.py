@@ -5,8 +5,9 @@ Revises: 0002
 Create Date: 2026-10-12
 """
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision = "0003"
 down_revision = "0002"

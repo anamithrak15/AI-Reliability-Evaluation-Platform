@@ -42,6 +42,7 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     # Bumping this invalidates every session token issued before the change.
     token_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = _ts()
 
 

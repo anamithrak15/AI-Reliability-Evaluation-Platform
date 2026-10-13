@@ -77,6 +77,8 @@ export default function AuthPage({ mode, notice }: { mode: "login" | "register";
         ) : (
           <>
             New here? <a href="#/register">Create an account</a>
+            {" \u00b7 "}
+            <a href="#/forgot-password">Forgot password?</a>
           </>
         )}
       </p>
