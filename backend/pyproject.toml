@@ -13,6 +13,9 @@ dependencies = [
     "redis>=5.0,<6",
     "rq>=1.16,<3",
     "jsonschema>=4.22,<5",
+    "argon2-cffi>=23.1,<26",
+    "pyjwt>=2.8,<3",
+    "email-validator>=2.1,<3",
 ]
 
 [project.optional-dependencies]
@@ -37,3 +40,8 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP", "B"]
+# FastAPI declares dependencies as default arguments.
+ignore = ["B008"]

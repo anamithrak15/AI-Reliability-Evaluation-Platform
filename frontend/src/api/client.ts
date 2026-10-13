@@ -23,6 +23,8 @@ export interface ReadyResponse {
   checks: Record<string, string>;
 }
 
+export const UNAUTHORIZED_EVENT = "auth:unauthorized";
+
 export async function request<T>(
   path: string,
   options: {
@@ -35,17 +37,27 @@ export async function request<T>(
   const { method = "GET", body, headers = {}, acceptStatuses = [] } = options;
   const res = await fetch(path, {
     method,
-    headers: body === undefined ? headers : { "Content-Type": "application/json", ...headers },
+    // The server requires this header on state-changing calls; cross-site pages cannot send it.
+    headers: {
+      "X-Requested-With": "fetch",
+      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      ...headers,
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (res.ok || acceptStatuses.includes(res.status)) {
-    return (await res.json()) as T;
+    // 204 responses (sign out) have no body.
+    return (res.status === 204 ? undefined : await res.json()) as T;
   }
   let envelope: { code?: string; message?: string; details?: ErrorDetail[] } = {};
   try {
     envelope = await res.json();
   } catch {
     // non-JSON error body
+  }
+  // A 401 from anywhere but the sign-in calls means the session is gone.
+  if (res.status === 401 && !path.startsWith("/api/v1/auth/")) {
+    window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
   }
   // The dev/preview proxy answers with a bodiless 5xx when the backend is down.
   const unreachable = envelope.message === undefined && res.status >= 500 && res.status <= 504;

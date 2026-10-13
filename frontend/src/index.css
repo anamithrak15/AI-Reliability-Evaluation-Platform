@@ -64,3 +64,8 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
   main { padding: 1rem; }
   .banner { display: block; }
 }
+
+.auth-card { max-width: 26rem; }
+.auth-card label { display: block; }
+.auth-card input { display: block; width: 100%; box-sizing: border-box; margin-top: 0.25rem; padding: 0.4rem; }
+.account { word-break: break-all; }

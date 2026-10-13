@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -45,14 +46,42 @@ class Settings(BaseSettings):
     max_request_bytes: int = 1_048_576
     max_models_per_run: int = 3
     max_concurrency_limit: int = 5
+    # Per user; the global cap stops many users from queueing unbounded work on a small host.
     max_active_runs: int = 3
+    max_active_runs_global: int = 10
+    max_datasets_per_user: int = 20
     max_retries: int = 2
     retry_backoff_seconds: float = 0.25
     max_run_seconds: int = 300
     stale_run_seconds: int = 900
+    # Run evaluations in the API process instead of a separate RQ worker (single-service hosting).
+    run_worker_inline: bool = False
+    inline_worker_threads: int = 2
+    # Number of reverse proxies in front of the API that append to X-Forwarded-For (0 = none).
+    trusted_proxy_hops: int = 0
+    # Accounts. SECRET_KEY signs session cookies; set a long random value outside development.
+    environment: str = "development"
+    secret_key: str = "dev-only-insecure-secret-change-me-0123456789"
+    cookie_secure: bool = False
+    session_days: int = 7
+    allow_registration: bool = True
+    password_min_length: int = 10
+    # Auth attempts use the shared rate-limit window; 0 disables a bucket.
+    auth_register_per_window: int = 5
+    auth_login_ip_per_window: int = 10
+    auth_login_email_per_window: int = 5
     demo_dataset_path: str = str(
         Path(__file__).resolve().parents[3] / "datasets" / "demo_dataset.json"
     )
+
+    @field_validator("database_url")
+    @classmethod
+    def _driver(cls, url: str) -> str:
+        # Hosts hand out postgres:// or postgresql:// URLs; SQLAlchemy needs the psycopg 3 driver name.
+        for prefix in ("postgres://", "postgresql://"):
+            if url.startswith(prefix):
+                return "postgresql+psycopg://" + url[len(prefix):]
+        return url
 
     @property
     def cors_origin_list(self) -> list[str]:
@@ -62,3 +91,19 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+_DEFAULT_SECRET = Settings.model_fields["secret_key"].default
+
+
+def assert_safe_for_environment(s: Settings) -> None:
+    """Refuse to start in production with development defaults."""
+    if s.environment.lower() != "production":
+        return
+    problems = []
+    if s.secret_key == _DEFAULT_SECRET or len(s.secret_key) < 32:
+        problems.append("SECRET_KEY must be a random value of at least 32 characters")
+    if not s.cookie_secure:
+        problems.append("COOKIE_SECURE must be true")
+    if problems:
+        raise RuntimeError("Unsafe production configuration: " + "; ".join(problems))

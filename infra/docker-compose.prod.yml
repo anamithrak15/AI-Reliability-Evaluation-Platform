@@ -1,0 +1,75 @@
+# Production-style stack built from the production Dockerfiles. Run from the repository root:
+#   docker compose -f infra/docker-compose.prod.yml --env-file .env.prod up --build
+# Required in .env.prod: POSTGRES_PASSWORD and SECRET_KEY (e.g. `python -c "import secrets; print(secrets.token_urlsafe(48))"`).
+# Testing over plain http on a non-localhost host? Set ENVIRONMENT=development and COOKIE_SECURE=false.
+x-api-env: &api-env
+  DATABASE_URL: postgresql+psycopg://aireliability:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/aireliability
+  REDIS_URL: redis://redis:6379/0
+  ENVIRONMENT: ${ENVIRONMENT:-production}
+  SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY}
+  COOKIE_SECURE: ${COOKIE_SECURE:-true}
+  DEMO_MODE: ${DEMO_MODE:-true}
+  ENABLE_LIVE_LLM: "false"
+  # nginx in the frontend container is the single proxy in front of the API.
+  TRUSTED_PROXY_HOPS: "1"
+  ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-true}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: aireliability
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: aireliability
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aireliability -d aireliability"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile.prod
+    environment: *api-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile.prod
+    command: ["python", "-m", "app.worker.main"]
+    environment: *api-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile.prod
+    environment:
+      API_UPSTREAM: http://api:8000
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:

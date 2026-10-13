@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.errors import AppError
 from app.models import Dataset, DatasetVersion, TestCase
 from app.repositories import dataset_repo
@@ -82,8 +83,13 @@ def _insert_version(session: Session, dataset_id: UUID, number: int, batch: Case
     return version
 
 
-def create_dataset(session: Session, payload: DatasetCreate) -> DatasetCreated:
-    dataset = Dataset(name=payload.name, description=payload.description)
+def create_dataset(session: Session, payload: DatasetCreate, user_id: UUID) -> DatasetCreated:
+    limit = get_settings().max_datasets_per_user
+    if dataset_repo.count_datasets(session, user_id) >= limit:
+        raise AppError(
+            429, "quota_exceeded", f"Each account can hold at most {limit} datasets"
+        )
+    dataset = Dataset(name=payload.name, description=payload.description, user_id=user_id)
     session.add(dataset)
     session.flush()
     version = _insert_version(session, dataset.id, 1, payload)
@@ -94,24 +100,27 @@ def create_dataset(session: Session, payload: DatasetCreate) -> DatasetCreated:
     )
 
 
-def _require_dataset(session: Session, dataset_id: UUID):
-    row = dataset_repo.get_dataset_row(session, dataset_id)
+def _require_dataset(session: Session, dataset_id: UUID, user_id: UUID):
+    # Another user's dataset is reported as missing so its existence is not revealed.
+    row = dataset_repo.get_dataset_row(session, dataset_id, user_id)
     if row is None:
         raise AppError(404, "dataset_not_found", "Dataset not found")
     return row
 
 
-def list_datasets(session: Session, limit: int, offset: int) -> Page[DatasetSummary]:
-    rows, total = dataset_repo.list_datasets(session, limit, offset)
+def list_datasets(session: Session, user_id: UUID, limit: int, offset: int) -> Page[DatasetSummary]:
+    rows, total = dataset_repo.list_datasets(session, user_id, limit, offset)
     return Page(items=[_dataset_summary(r) for r in rows], total=total, limit=limit, offset=offset)
 
 
-def get_dataset(session: Session, dataset_id: UUID) -> DatasetSummary:
-    return _dataset_summary(_require_dataset(session, dataset_id))
+def get_dataset(session: Session, dataset_id: UUID, user_id: UUID) -> DatasetSummary:
+    return _dataset_summary(_require_dataset(session, dataset_id, user_id))
 
 
-def create_version(session: Session, dataset_id: UUID, batch: CaseBatch) -> VersionSummary:
-    _require_dataset(session, dataset_id)
+def create_version(
+    session: Session, dataset_id: UUID, batch: CaseBatch, user_id: UUID
+) -> VersionSummary:
+    _require_dataset(session, dataset_id, user_id)
     # Row lock serializes concurrent version creation for one dataset.
     if dataset_repo.lock_dataset(session, dataset_id) is None:
         raise AppError(404, "dataset_not_found", "Dataset not found")
@@ -133,13 +142,15 @@ def create_version(session: Session, dataset_id: UUID, batch: CaseBatch) -> Vers
     return _version_summary(version, len(batch.cases))
 
 
-def list_versions(session: Session, dataset_id: UUID) -> list[VersionSummary]:
-    _require_dataset(session, dataset_id)
+def list_versions(session: Session, dataset_id: UUID, user_id: UUID) -> list[VersionSummary]:
+    _require_dataset(session, dataset_id, user_id)
     return [_version_summary(v, n) for v, n in dataset_repo.list_versions(session, dataset_id)]
 
 
-def get_version(session: Session, dataset_id: UUID, version_number: int) -> VersionDetail:
-    _require_dataset(session, dataset_id)
+def get_version(
+    session: Session, dataset_id: UUID, version_number: int, user_id: UUID
+) -> VersionDetail:
+    _require_dataset(session, dataset_id, user_id)
     version = dataset_repo.get_version_with_cases(session, dataset_id, version_number)
     if version is None:
         raise AppError(404, "version_not_found", "Dataset version not found")

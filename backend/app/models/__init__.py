@@ -8,6 +8,7 @@ from app.models.entities import (
     RegressionFinding,
     RunSummary,
     TestCase,
+    User,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "RegressionFinding",
     "RunSummary",
     "TestCase",
+    "User",
 ]
