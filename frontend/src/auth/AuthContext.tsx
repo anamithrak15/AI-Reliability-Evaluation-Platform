@@ -12,6 +12,8 @@ interface AuthApi {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  // Replace the signed-in user's details (e.g. after verifying the email); ignored for other accounts.
+  updateUser: (user: User) => void;
 }
 
 const AuthContext = createContext<AuthApi | null>(null);
@@ -59,7 +61,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({ status: "anonymous", notice: null });
   }, []);
 
-  const value = useMemo(() => ({ state, login, register, logout }), [state, login, register, logout]);
+  const updateUser = useCallback((user: User) => {
+    setState((s) => (s.status === "authenticated" && s.user.id === user.id ? { status: "authenticated", user } : s));
+  }, []);
+
+  const value = useMemo(() => ({ state, login, register, logout, updateUser }), [state, login, register, logout, updateUser]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

@@ -70,6 +70,20 @@ class Settings(BaseSettings):
     auth_register_per_window: int = 5
     auth_login_ip_per_window: int = 10
     auth_login_email_per_window: int = 5
+    # Verification / reset emails per address and per account.
+    auth_email_per_window: int = 5
+    # Email. Without smtp_host nothing is sent (the message is logged outside production).
+    require_email_verification: bool = False
+    # Frontend origin used to build links in emails, e.g. https://app.example.com
+    public_base_url: str = "http://localhost:3000"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    smtp_starttls: bool = True
+    verify_token_minutes: int = 1440
+    reset_token_minutes: int = 30
     demo_dataset_path: str = str(
         Path(__file__).resolve().parents[3] / "datasets" / "demo_dataset.json"
     )
@@ -105,5 +119,7 @@ def assert_safe_for_environment(s: Settings) -> None:
         problems.append("SECRET_KEY must be a random value of at least 32 characters")
     if not s.cookie_secure:
         problems.append("COOKIE_SECURE must be true")
+    if s.require_email_verification and not (s.smtp_host and s.smtp_from):
+        problems.append("REQUIRE_EMAIL_VERIFICATION needs SMTP_HOST and SMTP_FROM")
     if problems:
         raise RuntimeError("Unsafe production configuration: " + "; ".join(problems))
