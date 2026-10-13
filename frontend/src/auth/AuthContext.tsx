@@ -53,10 +53,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     try {
       await signOut();
-    } finally {
-      // Even if the call fails the user asked to leave; the cookie expires on its own.
-      setState({ status: "anonymous", notice: null });
+    } catch {
+      // The cookie expires on its own; the user asked to leave, so leave locally regardless.
     }
+    setState({ status: "anonymous", notice: null });
   }, []);
 
   const value = useMemo(() => ({ state, login, register, logout }), [state, login, register, logout]);
