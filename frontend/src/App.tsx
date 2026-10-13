@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { listModels } from "./api/runs";
-import { ErrorBoundary } from "./components/StateViews";
+import { AuthProvider, useAuth } from "./auth/AuthContext";
+import { ErrorBoundary, Loading } from "./components/StateViews";
+import AuthPage from "./pages/AuthPage";
 import CaseInspectionPage from "./pages/CaseInspectionPage";
 import ComparisonPage from "./pages/ComparisonPage";
 import DatasetDetailPage from "./pages/DatasetDetailPage";
@@ -58,7 +60,43 @@ export function Banner() {
 }
 
 export default function App() {
+  return (
+    <AuthProvider>
+      <Shell />
+    </AuthProvider>
+  );
+}
+
+export function Shell() {
   const hash = useHash();
+  const { state, logout } = useAuth();
+  const authPage = hash === "#/login" || hash === "#/register";
+
+  useEffect(() => {
+    if (state.status === "authenticated" && authPage) window.location.hash = "#/datasets";
+  }, [state.status, authPage]);
+
+  if (state.status === "loading") {
+    return (
+      <div className="layout">
+        <main>
+          <Loading what="Loading" />
+        </main>
+      </div>
+    );
+  }
+
+  if (state.status === "anonymous") {
+    return (
+      <div className="layout">
+        <main>
+          <h2>AI Reliability</h2>
+          <AuthPage key={hash} mode={hash === "#/register" ? "register" : "login"} notice={state.notice} />
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="layout">
       <aside className="sidebar">
@@ -77,12 +115,14 @@ export default function App() {
             </li>
           </ul>
         </nav>
+        <p className="muted account">
+          Signed in as <strong>{state.user.email}</strong>
+        </p>
+        <button onClick={() => logout()}>Sign out</button>
       </aside>
       <main>
         <Banner />
-        <ErrorBoundary key={hash}>
-          <Route hash={hash} />
-        </ErrorBoundary>
+        <ErrorBoundary key={hash}>{authPage ? <Loading /> : <Route hash={hash} />}</ErrorBoundary>
       </main>
     </div>
   );

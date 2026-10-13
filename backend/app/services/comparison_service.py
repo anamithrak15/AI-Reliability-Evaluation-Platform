@@ -124,12 +124,13 @@ def get_comparison(session: Session, run: EvaluationRun) -> ComparisonOut:
 
 
 def validate_baseline(
-    session: Session, baseline_id: UUID, current_cfg: dict, self_id: UUID | None = None
+    session: Session, baseline_id: UUID, current_cfg: dict, self_id: UUID | None = None,
+    user_id: UUID | None = None,
 ) -> EvaluationRun:
     if baseline_id == self_id:
         raise AppError(400, "invalid_baseline", "A run cannot be its own baseline")
     baseline = run_repo.get_run(session, baseline_id)
-    if baseline is None:
+    if baseline is None or (user_id is not None and baseline.user_id != user_id):
         raise AppError(404, "baseline_run_not_found", "Baseline run not found")
     if baseline.status not in BASELINE_STATES:
         raise AppError(409, "baseline_not_finished", "Baseline run must be completed")

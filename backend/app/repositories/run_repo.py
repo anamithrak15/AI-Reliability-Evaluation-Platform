@@ -17,15 +17,13 @@ def get_by_idempotency_key(session: Session, key: str) -> EvaluationRun | None:
     return session.scalar(select(EvaluationRun).where(EvaluationRun.idempotency_key == key))
 
 
-def count_active(session: Session) -> int:
-    return (
-        session.scalar(
-            select(func.count()).select_from(EvaluationRun).where(
-                EvaluationRun.status.in_(ACTIVE_STATES)
-            )
-        )
-        or 0
+def count_active(session: Session, user_id: UUID | None = None) -> int:
+    query = select(func.count()).select_from(EvaluationRun).where(
+        EvaluationRun.status.in_(ACTIVE_STATES)
     )
+    if user_id is not None:
+        query = query.where(EvaluationRun.user_id == user_id)
+    return session.scalar(query) or 0
 
 
 def count_cases(session: Session, dataset_version_id: UUID) -> int:
@@ -53,9 +51,9 @@ def status_counts(session: Session, run_ids: list[UUID]) -> dict[UUID, dict[str,
     return result
 
 
-def list_runs(session: Session, status: str | None, limit: int, offset: int):
-    base = select(EvaluationRun)
-    count = select(func.count()).select_from(EvaluationRun)
+def list_runs(session: Session, user_id: UUID, status: str | None, limit: int, offset: int):
+    base = select(EvaluationRun).where(EvaluationRun.user_id == user_id)
+    count = select(func.count()).select_from(EvaluationRun).where(EvaluationRun.user_id == user_id)
     if status:
         base = base.where(EvaluationRun.status == status)
         count = count.where(EvaluationRun.status == status)

@@ -9,30 +9,33 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 
-from app.api import catalog, datasets, health, runs
-from app.core.config import get_settings
+from app.api import auth, catalog, datasets, health, runs
+from app.core.client_ip import client_ip
+from app.core.config import assert_safe_for_environment, get_settings
 from app.core.errors import error_body, register_error_handlers
 from app.core.logging import configure_logging
 from app.core.rate_limit import get_limiter
 from app.core.request_context import request_id_var
-from app.db.seed import seed_demo_dataset
+from app.services.resume import resume_incomplete_runs
 
 settings = get_settings()
+assert_safe_for_environment(settings)
 configure_logging(settings.log_level)
 logger = logging.getLogger(__name__)
 
 # Client-supplied IDs are only echoed when they are short and plain, which keeps logs injection-safe.
 _REQUEST_ID = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 _QUIET_PATHS = {"/health", "/ready"}
+_UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    if settings.demo_mode:
+    if settings.run_worker_inline:
         try:
-            seed_demo_dataset(settings.demo_dataset_path)
+            await run_in_threadpool(resume_incomplete_runs)
         except Exception:
-            logger.exception("demo dataset seeding failed")
+            logger.exception("could not resume incomplete runs")
     yield
 
 
@@ -44,7 +47,7 @@ def _retry_after_if_limited(request: Request) -> int | None:
     path = request.url.path
     if not settings.rate_limit_enabled or not path.startswith("/api/"):
         return None
-    client = request.client.host if request.client else "unknown"
+    client = client_ip(request)
     limiter = get_limiter()
     checks = [("api", settings.rate_limit_per_window)]
     if request.method == "POST" and path == "/api/v1/runs":
@@ -63,6 +66,17 @@ async def _early_rejection(request: Request) -> JSONResponse | None:
             status_code=429,
             content=error_body("rate_limited", "Too many requests; slow down and retry shortly"),
             headers={"Retry-After": str(retry_after)},
+        )
+    # Cookie auth is ambient, so state-changing calls must prove they came from our own client:
+    # browsers cannot attach this header cross-origin without a CORS preflight, which is denied.
+    if (
+        request.method in _UNSAFE_METHODS
+        and request.url.path.startswith("/api/")
+        and request.headers.get("x-requested-with") != "fetch"
+    ):
+        return JSONResponse(
+            status_code=403,
+            content=error_body("csrf_check_failed", "Missing X-Requested-With header"),
         )
     # Chunked uploads carry no declared size, so the size cap below could not apply to them.
     if "chunked" in request.headers.get("transfer-encoding", "").lower():
@@ -101,6 +115,7 @@ async def request_middleware(request: Request, call_next):
                 "method": request.method,
                 "path": request.url.path,
                 "status": status,
+                "client_ip": client_ip(request),
                 "duration_ms": round((time.perf_counter() - started) * 1000, 1),
             },
         )
@@ -127,6 +142,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 
 
 app.include_router(health.router)
+app.include_router(auth.router)
 app.include_router(datasets.router)
 app.include_router(runs.router)
 app.include_router(catalog.router)

@@ -7,6 +7,7 @@ from typing import Protocol
 import redis
 
 from app.core.config import get_settings
+from app.core.errors import AppError
 
 logger = logging.getLogger(__name__)
 
@@ -59,3 +60,12 @@ def get_limiter() -> RateLimiter:
         )
         _limiter = RateLimiter(RedisCounter(client), settings.rate_limit_window_seconds)
     return _limiter
+
+
+def enforce(bucket: str, key: str, limit: int) -> None:
+    """Raise 429 when `key` has used up `limit` hits of `bucket` in the current window."""
+    if not get_settings().rate_limit_enabled:
+        return
+    allowed, _ = get_limiter().check(bucket, key, limit)
+    if not allowed:
+        raise AppError(429, "rate_limited", "Too many attempts; wait a minute and try again")

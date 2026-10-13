@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError, describeError, request } from "./client";
+import { ApiError, describeError, request, UNAUTHORIZED_EVENT } from "./client";
 
 function respond(status: number, body: unknown, raw = false) {
   return vi.spyOn(globalThis, "fetch").mockResolvedValue(
@@ -10,11 +10,11 @@ function respond(status: number, body: unknown, raw = false) {
 afterEach(() => vi.restoreAllMocks());
 
 describe("request", () => {
-  it("returns parsed JSON and sends no body headers on GET", async () => {
+  it("returns parsed JSON and always sends the CSRF header", async () => {
     const spy = respond(200, { ok: true });
     expect(await request("/x")).toEqual({ ok: true });
     expect(spy.mock.calls[0][1]?.body).toBeUndefined();
-    expect(spy.mock.calls[0][1]?.headers).toEqual({});
+    expect(spy.mock.calls[0][1]?.headers).toEqual({ "X-Requested-With": "fetch" });
   });
 
   it("sends JSON bodies with a content type", async () => {
@@ -22,7 +22,34 @@ describe("request", () => {
     await request("/x", { method: "POST", body: { a: 1 }, headers: { "Idempotency-Key": "k" } });
     const init = spy.mock.calls[0][1]!;
     expect(init.body).toBe('{"a":1}');
-    expect(init.headers).toEqual({ "Content-Type": "application/json", "Idempotency-Key": "k" });
+    expect(init.headers).toEqual({
+      "X-Requested-With": "fetch",
+      "Content-Type": "application/json",
+      "Idempotency-Key": "k",
+    });
+  });
+
+  it("accepts empty 204 responses", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 204 }));
+    await expect(request("/api/v1/auth/logout", { method: "POST" })).resolves.toBeUndefined();
+  });
+
+  it("announces a lost session on 401 for data calls only", async () => {
+    const heard = vi.fn();
+    window.addEventListener(UNAUTHORIZED_EVENT, heard);
+    try {
+      respond(401, { code: "not_authenticated", message: "Sign in to continue" });
+      await expect(request("/api/v1/runs")).rejects.toMatchObject({ status: 401 });
+      expect(heard).toHaveBeenCalledTimes(1);
+
+      respond(401, { code: "invalid_credentials", message: "Incorrect email or password" });
+      await expect(request("/api/v1/auth/login", { method: "POST", body: {} })).rejects.toMatchObject({
+        code: "invalid_credentials",
+      });
+      expect(heard).toHaveBeenCalledTimes(1);
+    } finally {
+      window.removeEventListener(UNAUTHORIZED_EVENT, heard);
+    }
   });
 
   it("throws ApiError carrying the server error envelope", async () => {

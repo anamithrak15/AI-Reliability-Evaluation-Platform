@@ -1,7 +1,7 @@
 """Per-model aggregation of case results. Pure functions; missing data is never treated as zero."""
 
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
-from typing import Iterable
 
 FAILED_STATUSES = {"provider_error", "timeout", "invalid_output"}
 

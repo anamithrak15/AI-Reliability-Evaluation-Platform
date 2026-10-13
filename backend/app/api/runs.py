@@ -4,7 +4,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Path, Query
 from sqlalchemy.orm import Session
 
+from app.auth.deps import get_current_user
 from app.db.database import get_session
+from app.models import User
 from app.schemas.comparison import BaselineSet, ComparisonOut, RegressionsOut, ReportOut
 from app.schemas.dataset import Page
 from app.schemas.run import CaseDetailOut, CaseResultOut, RunCreate, RunOut
@@ -21,8 +23,9 @@ def create_run(
     payload: RunCreate,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key", max_length=100),
     session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
 ) -> RunOut:
-    return run_service.create_run(session, payload, idempotency_key)
+    return run_service.create_run(session, payload, idempotency_key, user.id)
 
 
 @router.get("")
@@ -31,40 +34,54 @@ def list_runs(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
 ) -> Page[RunOut]:
-    return run_service.list_runs(session, status, limit, offset)
+    return run_service.list_runs(session, user.id, status, limit, offset)
 
 
 @router.get("/{run_id}")
-def get_run(run_id: UUID, session: Session = Depends(get_session)) -> RunOut:
-    return run_service.get_run(session, run_id)
+def get_run(
+    run_id: UUID, session: Session = Depends(get_session), user: User = Depends(get_current_user)
+) -> RunOut:
+    return run_service.get_run(session, run_id, user.id)
 
 
 @router.post("/{run_id}/cancel")
-def cancel_run(run_id: UUID, session: Session = Depends(get_session)) -> RunOut:
-    return run_service.cancel_run(session, run_id)
+def cancel_run(
+    run_id: UUID, session: Session = Depends(get_session), user: User = Depends(get_current_user)
+) -> RunOut:
+    return run_service.cancel_run(session, run_id, user.id)
 
 
 @router.post("/{run_id}/baseline")
 def set_baseline(
-    run_id: UUID, payload: BaselineSet, session: Session = Depends(get_session)
+    run_id: UUID,
+    payload: BaselineSet,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
 ) -> RunOut:
-    return run_service.set_baseline(session, run_id, payload.baseline_run_id)
+    return run_service.set_baseline(session, run_id, payload.baseline_run_id, user.id)
 
 
 @router.get("/{run_id}/comparison")
-def get_comparison(run_id: UUID, session: Session = Depends(get_session)) -> ComparisonOut:
-    return run_service.get_comparison(session, run_id)
+def get_comparison(
+    run_id: UUID, session: Session = Depends(get_session), user: User = Depends(get_current_user)
+) -> ComparisonOut:
+    return run_service.get_comparison(session, run_id, user.id)
 
 
 @router.get("/{run_id}/regressions")
-def get_regressions(run_id: UUID, session: Session = Depends(get_session)) -> RegressionsOut:
-    return run_service.get_regressions(session, run_id)
+def get_regressions(
+    run_id: UUID, session: Session = Depends(get_session), user: User = Depends(get_current_user)
+) -> RegressionsOut:
+    return run_service.get_regressions(session, run_id, user.id)
 
 
 @router.get("/{run_id}/report")
-def get_report(run_id: UUID, session: Session = Depends(get_session)) -> ReportOut:
-    return run_service.get_report(session, run_id)
+def get_report(
+    run_id: UUID, session: Session = Depends(get_session), user: User = Depends(get_current_user)
+) -> ReportOut:
+    return run_service.get_report(session, run_id, user.id)
 
 
 @router.get("/{run_id}/cases/{case_key}")
@@ -72,8 +89,9 @@ def get_case_detail(
     run_id: UUID,
     case_key: str = Path(min_length=1, max_length=200),
     session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
 ) -> CaseDetailOut:
-    return run_service.get_case_detail(session, run_id, case_key)
+    return run_service.get_case_detail(session, run_id, case_key, user.id)
 
 
 @router.get("/{run_id}/results")
@@ -84,5 +102,6 @@ def list_results(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
 ) -> Page[CaseResultOut]:
-    return run_service.list_results(session, run_id, model_alias, status, limit, offset)
+    return run_service.list_results(session, run_id, user.id, model_alias, status, limit, offset)

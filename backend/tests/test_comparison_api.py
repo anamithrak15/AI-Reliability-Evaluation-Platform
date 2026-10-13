@@ -20,7 +20,7 @@ def finish_run(session_factory, run_id, data, final="completed"):
             .order_by(TestCase.case_key)
         ).all()
         for alias, rows in data.items():
-            for case, (status, latency, quality, cost) in zip(cases, rows):
+            for case, (status, latency, quality, cost) in zip(cases, rows, strict=False):
                 r = CaseResult(
                     run_id=run_id, test_case_id=case.id, model_alias=alias, status=status,
                     latency_ms=latency, input_tokens=10, output_tokens=5, estimated_cost_usd=cost,

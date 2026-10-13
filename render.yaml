@@ -1,0 +1,51 @@
+# Render Blueprint: API + managed Postgres + Key Value (Redis). The frontend is deployed on Vercel.
+# Free-tier facts (https://render.com/docs/free): web services spin down after 15 idle minutes and take
+# about a minute to wake; the free Postgres database expires 30 days after creation; free Key Value
+# is in-memory only. Run evaluations inline so no paid background worker is needed.
+databases:
+  - name: ai-reliability-db
+    plan: free
+    databaseName: aireliability
+    user: aireliability
+    ipAllowList: [] # private network only
+
+services:
+  - type: keyvalue
+    name: ai-reliability-redis
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: [] # private network only
+
+  - type: web
+    name: ai-reliability-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile.prod
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: RUN_WORKER_INLINE
+        value: "true"
+      - key: DEMO_MODE
+        value: "true"
+      - key: ENABLE_LIVE_LLM
+        value: "false"
+      # Number of proxies in front of the API. Start at 1, then follow the README to verify it.
+      - key: TRUSTED_PROXY_HOPS
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ai-reliability-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: ai-reliability-redis
+          property: connectionString

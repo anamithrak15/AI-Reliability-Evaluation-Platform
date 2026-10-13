@@ -1,9 +1,10 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from app.auth.deps import get_current_user
 from app.evaluation import registry
 from app.schemas.run import ModelOut, ProfileOut
 
-router = APIRouter(prefix="/api/v1", tags=["catalog"])
+router = APIRouter(prefix="/api/v1", tags=["catalog"], dependencies=[Depends(get_current_user)])
 
 
 @router.get("/models")

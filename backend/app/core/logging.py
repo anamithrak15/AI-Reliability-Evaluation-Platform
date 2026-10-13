@@ -4,7 +4,7 @@ import sys
 
 from app.core.request_context import request_id_var
 
-_EXTRA_KEYS = ("run_id", "case_id", "method", "path", "status", "duration_ms")
+_EXTRA_KEYS = ("run_id", "case_id", "method", "path", "status", "duration_ms", "client_ip")
 
 
 class JsonFormatter(logging.Formatter):

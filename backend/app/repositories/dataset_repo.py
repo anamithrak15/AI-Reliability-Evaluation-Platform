@@ -14,16 +14,29 @@ def _summary_query():
     )
 
 
-def list_datasets(session: Session, limit: int, offset: int):
+def list_datasets(session: Session, user_id: UUID, limit: int, offset: int):
     rows = session.execute(
-        _summary_query().order_by(Dataset.created_at.desc(), Dataset.id).limit(limit).offset(offset)
+        _summary_query()
+        .where(Dataset.user_id == user_id)
+        .order_by(Dataset.created_at.desc(), Dataset.id)
+        .limit(limit)
+        .offset(offset)
     ).all()
-    total = session.scalar(select(func.count()).select_from(Dataset)) or 0
+    total = count_datasets(session, user_id)
     return rows, total
 
 
-def get_dataset_row(session: Session, dataset_id: UUID):
-    return session.execute(_summary_query().where(Dataset.id == dataset_id)).one_or_none()
+def count_datasets(session: Session, user_id: UUID) -> int:
+    return (
+        session.scalar(select(func.count()).select_from(Dataset).where(Dataset.user_id == user_id))
+        or 0
+    )
+
+
+def get_dataset_row(session: Session, dataset_id: UUID, user_id: UUID):
+    return session.execute(
+        _summary_query().where(Dataset.id == dataset_id, Dataset.user_id == user_id)
+    ).one_or_none()
 
 
 def lock_dataset(session: Session, dataset_id: UUID) -> Dataset | None:

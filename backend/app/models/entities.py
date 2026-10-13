@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -22,7 +22,7 @@ from app.db.database import Base
 
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _pk() -> Mapped[uuid.UUID]:
@@ -33,6 +33,18 @@ def _ts() -> Mapped[datetime]:
     return mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[uuid.UUID] = _pk()
+    email: Mapped[str] = mapped_column(String(254), unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # Bumping this invalidates every session token issued before the change.
+    token_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_at: Mapped[datetime] = _ts()
+
+
 class Dataset(Base):
     __tablename__ = "datasets"
 
@@ -40,6 +52,9 @@ class Dataset(Base):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     owner_id: Mapped[str | None] = mapped_column(String(100))
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
     created_at: Mapped[datetime] = _ts()
 
     versions: Mapped[list["DatasetVersion"]] = relationship(back_populates="dataset")
@@ -109,6 +124,9 @@ class EvaluationRun(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = _ts()
     requested_by: Mapped[str | None] = mapped_column(String(100))
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
     error_summary: Mapped[str | None] = mapped_column(Text)
     idempotency_key: Mapped[str | None] = mapped_column(String(100), unique=True)
 
