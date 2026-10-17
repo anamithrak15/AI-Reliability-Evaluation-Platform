@@ -66,6 +66,7 @@ Local models report a cost of 0 through LiteLLM; hosted models are priced from L
 | Concern | How it is handled |
 |---|---|
 | Passwords | argon2id hashes; minimum 10 characters; the same error for every login failure; hashes are upgraded when parameters change |
+| Email and reset | optional email verification (`REQUIRE_EMAIL_VERIFICATION`); signed single-purpose links, 24 h for verification and 30 min for reset; a reset link works once and ends all other sessions; "forgot password" answers identically for unknown addresses |
 | Sessions | signed token in an `HttpOnly`, `SameSite=Lax` cookie (`Secure` when `COOKIE_SECURE=true`); expires after `SESSION_DAYS`; bumping a user's `token_version` revokes it |
 | CSRF | every state-changing `/api` call must carry `X-Requested-With: fetch`; browsers cannot add it cross-origin without a CORS preflight, which is denied |
 | Data isolation | every dataset and run belongs to one account; another account's resources return `404`; idempotency keys are scoped per account |
@@ -73,7 +74,7 @@ Local models report a cost of 0 through LiteLLM; hosted models are priced from L
 | Secrets | `.env` is git-ignored; production refuses to start with the development secret or insecure cookies |
 | Logs | structured JSON with request IDs; query strings and credentials are never logged; provider errors are redacted |
 
-Not implemented (see Limitations): email verification, password reset, roles, SSO.
+Not implemented (see Limitations): roles, SSO.
 
 ## Configuration
 
@@ -84,7 +85,11 @@ Not implemented (see Limitations): email verification, password reset, roles, SS
 | `SECRET_KEY` | dev key | signs sessions; use 32+ random characters in production |
 | `COOKIE_SECURE` | `false` | set `true` behind HTTPS |
 | `ALLOW_REGISTRATION` | `true` | close sign-up |
-| `TRUSTED_PROXY_HOPS` | `0` | reverse proxies that append to `X-Forwarded-For` |
+| `TRUSTED_PROXY_HOPS` | `0` | reverse proxies that append to `X-Forwarded-For` (Vercel in front of Render needed `4`) |
+| `REQUIRE_EMAIL_VERIFICATION` | `false` | block data access until the email is verified; in production it needs a delivery method |
+| `PUBLIC_BASE_URL` | `http://localhost:3000` | frontend origin used in emailed links |
+| `BREVO_API_KEY`, `SMTP_FROM` | unset | send email over HTTPS through Brevo; `SMTP_FROM` must be a verified Brevo sender |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_STARTTLS` | unset, `587` | SMTP delivery, used when `BREVO_API_KEY` is unset |
 | `RUN_WORKER_INLINE` | `false` | run evaluations inside the API process (single-service hosting) |
 | `DEMO_MODE` | `true` | seed the demo dataset for new accounts |
 | `ENABLE_LIVE_LLM`, `LIVE_MODELS` | off | live providers via LiteLLM |
@@ -132,11 +137,12 @@ Serves the built frontend with nginx on http://localhost:8080 (nginx also proxie
 Free-tier behaviour, per [Render's documentation](https://render.com/docs/free): a free web service **spins down after 15 idle minutes and takes about a minute to wake**; the free Postgres database **expires 30 days after creation** (1 GB, one per workspace); free Key Value is in-memory, so rate-limit counters reset on restart. Free workers are not offered, so the blueprint runs evaluations inside the API process (`RUN_WORKER_INLINE=true`; incomplete runs are resumed on start-up, which assumes a single API instance).
 
 1. Push the repository to GitHub.
-2. In Render choose **New > Blueprint**, select the repository, and when asked for `TRUSTED_PROXY_HOPS` enter `1`. [`render.yaml`](render.yaml) creates the database, the Key Value instance and the API service.
+2. In Render choose **New > Blueprint**, select the repository, and when asked for `TRUSTED_PROXY_HOPS` enter `1` for now (step 6 finds the right value; Vercel in front of Render ended up needing `4`). [`render.yaml`](render.yaml) creates the database, the Key Value instance and the API service.
 3. Note the API address. If it is not `https://ai-reliability-api.onrender.com`, edit both destinations in [`frontend/vercel.json`](frontend/vercel.json).
 4. In Vercel choose **Add New > Project**, import the repository, set **Root Directory** to `frontend`, and deploy. Vercel forwards `/api/*` to Render, so the browser sees one origin and no CORS is needed.
 5. Open the Vercel URL and create an account.
-6. **Check the client address** the API sees, because rate limits are keyed on it. Sign in, then look at a recent request line in the Render logs: `client_ip` should be your own public address. If it shows an address that is not yours, increase `TRUSTED_PROXY_HOPS` by one and redeploy; repeat until it matches. Then confirm spoofing is ignored: `curl -H "X-Forwarded-For: 1.2.3.4" https://<your-vercel-url>/health`, and make sure the logged `client_ip` is not `1.2.3.4`.
+6. **Check the client address** the API sees, because rate limits are keyed on it. Sign in, then look at a recent request line in the Render logs: `client_ip` should be your own public address (search "what is my IP"). If it shows an address that is not yours, increase `TRUSTED_PROXY_HOPS` by one and redeploy; repeat until it matches. Behind a corporate or cloud proxy your own address can legitimately alternate between several exit addresses; confirm from another network (for example a phone hotspot) before changing the value again. Then confirm spoofing is ignored: `curl --ssl-no-revoke -H "X-Forwarded-For: 1.2.3.4" https://<your-vercel-url>/api/v1/auth/me` (a `401` is expected) and make sure the logged `client_ip` is not `1.2.3.4`. Do not use `/health` for this: it is logged at debug level, so no line appears. `--ssl-no-revoke` is only needed on Windows networks that block certificate revocation checks (curl exit code 35).
+7. **Email.** Verification and reset emails need a delivery method; without one, the resend and forgot-password calls return `503 email_unavailable` in production. Render's free tier blocks outbound SMTP (connections time out), so use Brevo's HTTPS API: create a Brevo account, verify a sender address, generate an API key, then set `BREVO_API_KEY`, `SMTP_FROM` (the verified sender) and `PUBLIC_BASE_URL` (your Vercel URL) in Render. Failures are logged as `could not send email: <reason>`.
 
 The first request after an idle period is slow (the service is waking). The UI reports a gateway error with a Retry button in that case.
 
@@ -146,7 +152,7 @@ Interactive docs are served at `/docs`. All endpoints except `/health`, `/ready`
 
 | Area | Endpoints |
 |---|---|
-| Auth | `POST /api/v1/auth/register`, `login`, `logout`; `GET /api/v1/auth/me` |
+| Auth | `POST /api/v1/auth/register`, `login`, `logout`, `verify-email`, `resend-verification`, `forgot-password`, `reset-password`, `change-password`; `GET /api/v1/auth/me` |
 | Datasets | `POST/GET /api/v1/datasets`, `GET /{id}`, `POST/GET /{id}/versions`, `GET /{id}/versions/{n}` |
 | Runs | `POST/GET /api/v1/runs` (`Idempotency-Key` supported), `GET /{id}`, `POST /{id}/cancel`, `POST /{id}/baseline`, `GET /{id}/results`, `/{id}/cases/{key}` |
 | Analysis | `GET /api/v1/runs/{id}/comparison`, `/regressions`, `/report` |
@@ -158,7 +164,7 @@ Errors always use `{code, message, details?}`. Validation errors are `400`, miss
 
 - Mock models classify by keywords, so their results are only meaningful on the bundled demo dataset. They demonstrate the platform; they say nothing about real models.
 - Small samples give weak signals. Regression checks and the recommendation are skipped or flagged below a minimum sample size, but they are not statistical tests.
-- No email verification, password reset, roles or SSO. Sign-up is open by default (`ALLOW_REGISTRATION=false` closes it).
+- No roles or SSO. Sign-up is open by default (`ALLOW_REGISTRATION=false` closes it). Email verification is optional and off by default, and email needs a configured provider.
 - Rate limits are per client address and depend on a correct `TRUSTED_PROXY_HOPS`.
 - Inline-worker mode supports one API instance only.
 - Estimated cost is not an invoice, and some providers report no usage.
@@ -166,7 +172,7 @@ Errors always use `{code, message, details?}`. Validation errors are `400`, miss
 
 ## Roadmap
 
-Email verification and password reset, OAuth sign-in, LLM-as-a-judge evaluators with calibration, scheduled and CI-triggered runs, per-user budgets for live models, exportable reports, and statistical confidence for small datasets.
+OAuth sign-in, account deletion and data export, LLM-as-a-judge evaluators with calibration, scheduled and CI-triggered runs, per-user budgets for live models, exportable reports, and statistical confidence for small datasets.
 
 ## Repository layout
 
