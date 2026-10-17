@@ -82,6 +82,9 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from: str = ""
     smtp_starttls: bool = True
+    # HTTPS delivery through Brevo; preferred over SMTP because free hosts often block SMTP ports.
+    # The sender (SMTP_FROM) must be a verified sender in the Brevo account.
+    brevo_api_key: str = ""
     verify_token_minutes: int = 1440
     reset_token_minutes: int = 30
     demo_dataset_path: str = str(
@@ -119,7 +122,9 @@ def assert_safe_for_environment(s: Settings) -> None:
         problems.append("SECRET_KEY must be a random value of at least 32 characters")
     if not s.cookie_secure:
         problems.append("COOKIE_SECURE must be true")
-    if s.require_email_verification and not (s.smtp_host and s.smtp_from):
-        problems.append("REQUIRE_EMAIL_VERIFICATION needs SMTP_HOST and SMTP_FROM")
+    if s.require_email_verification and not (
+        (s.brevo_api_key or s.smtp_host) and s.smtp_from
+    ):
+        problems.append("REQUIRE_EMAIL_VERIFICATION needs BREVO_API_KEY or SMTP_HOST, and SMTP_FROM")
     if problems:
         raise RuntimeError("Unsafe production configuration: " + "; ".join(problems))
