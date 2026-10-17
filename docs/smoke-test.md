@@ -16,6 +16,10 @@ Run after any deployment. Each item states the expected result; stop and investi
 - [ ] A wrong password shows "Incorrect email or password", the same text for an unknown email.
 - [ ] Opening `#/runs` while signed out shows the sign-in form, not data.
 - [ ] A second account sees **none** of the first account's datasets or runs.
+- [ ] A new account shows the "email address is not verified" banner; **Account > Resend verification email** reports success (or `Email is not configured on this server` when no provider is set).
+- [ ] With a provider configured, the emailed link marks the account **verified**; a garbage link at `#/verify-email?token=x` shows "invalid or has expired".
+- [ ] **Forgot password** gives the same message for a known and an unknown address; the emailed reset link works once, then shows the expired-link error, and the old password stops working.
+- [ ] **Account > Change password** rejects a wrong current password, accepts the right one, and keeps this browser signed in.
 
 ## 3. Main workflow (fresh account)
 
@@ -35,7 +39,7 @@ Run after any deployment. Each item states the expected result; stop and investi
 
 - [ ] Six wrong sign-ins for one email in a minute return `429`.
 - [ ] A state-changing request without `X-Requested-With: fetch` returns `403 csrf_check_failed`.
-- [ ] `curl -H "X-Forwarded-For: 1.2.3.4" <url>/health`: the API log's `client_ip` is **not** `1.2.3.4` (hosted deployments only).
+- [ ] `curl --ssl-no-revoke -H "X-Forwarded-For: 1.2.3.4" <url>/api/v1/auth/me` (expect `401`): the API log's `client_ip` is **not** `1.2.3.4` (hosted deployments only). Do not use `/health`; it is logged at debug level.
 
 ## 6. Hosted demo extras
 
