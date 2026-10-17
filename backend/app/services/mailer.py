@@ -16,6 +16,12 @@ class Mail:
     body: str
 
 
+def can_deliver() -> bool:
+    """False in production without SMTP, where a queued message would silently go nowhere."""
+    settings = get_settings()
+    return bool(settings.smtp_host) or settings.environment.lower() != "production"
+
+
 def send(mail: Mail) -> None:
     """Deliver over SMTP. Never raises: it runs after the response, where nobody could handle it."""
     settings = get_settings()
