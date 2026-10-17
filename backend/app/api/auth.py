@@ -86,11 +86,17 @@ def verify_email(
     return UserOut.model_validate(auth_service.verify_email(session, payload.token))
 
 
+def _require_mail() -> None:
+    if not mailer.can_deliver():
+        raise AppError(503, "email_unavailable", "Email is not configured on this server")
+
+
 @router.post("/resend-verification", status_code=202)
 def resend_verification(
     background: BackgroundTasks, user: User = Depends(get_session_user)
 ) -> None:
     enforce("auth_resend", str(user.id), get_settings().auth_email_per_window)
+    _require_mail()
     if user.email_verified_at is None:
         background.add_task(mailer.send, auth_service.verification_mail(user))
 
@@ -105,6 +111,7 @@ def forgot_password(
     limit = get_settings().auth_email_per_window
     enforce("auth_forgot_ip", _client(request), limit * 2)
     enforce("auth_forgot_email", payload.email, limit)
+    _require_mail()  # a server-wide condition, so it reveals nothing about any account
     user = session.scalar(select(User).where(User.email == payload.email))
     # Same response whether or not the account exists, so this cannot be used to probe for emails.
     if user is not None and user.is_active:

@@ -81,6 +81,25 @@ def test_resend_verification_needs_a_session(anonymous_client, outbox):
     assert anonymous_client.post(f"{AUTH}/resend-verification").status_code == 401
 
 
+@pytest.fixture
+def production_without_smtp(monkeypatch):
+    monkeypatch.setattr(get_settings(), "environment", "production")
+    monkeypatch.setattr(get_settings(), "smtp_host", "")
+
+
+def test_resend_and_forgot_report_unavailable_email_instead_of_false_success(
+    anonymous_client, outbox, production_without_smtp
+):
+    register(anonymous_client)
+    resend = anonymous_client.post(f"{AUTH}/resend-verification")
+    assert resend.status_code == 503 and resend.json()["code"] == "email_unavailable"
+    forgot = anonymous_client.post(f"{AUTH}/forgot-password", json={"email": "new@example.com"})
+    assert forgot.status_code == 503
+    unknown = anonymous_client.post(f"{AUTH}/forgot-password", json={"email": "nobody@example.com"})
+    assert unknown.status_code == 503
+    assert len(outbox) == 1  # only the registration message was queued
+
+
 # --- password reset ---------------------------------------------------------------------------
 
 
