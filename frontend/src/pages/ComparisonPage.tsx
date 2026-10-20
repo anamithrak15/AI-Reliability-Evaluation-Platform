@@ -3,6 +3,8 @@ import { describeError } from "../api/client";
 import { getComparison, getRegressions, setBaseline } from "../api/comparison";
 import { getRun, listRuns } from "../api/runs";
 import { StatusBadge } from "../components/RunStatus";
+import { TrophyIcon } from "../components/Icons";
+import PageHeader, { Crumb } from "../components/PageHeader";
 import { ErrorMessage, Loading } from "../components/StateViews";
 import type { Comparison, Regressions } from "../types/comparison";
 import type { Run } from "../types/run";
@@ -67,16 +69,20 @@ export default function ComparisonPage({ id }: { id: string }) {
 
   return (
     <>
-      <p>
-        <a href={`#/runs/${id}`}>&larr; Run {id.slice(0, 8)}</a>
-      </p>
-      <h1>
-        Comparison <StatusBadge status={run.status} />
-      </h1>
-      <p>
-        {comparison.dataset_name} v{comparison.dataset_version_number} &middot; profile:{" "}
-        {comparison.evaluation_profile} &middot; dataset hash <code>{comparison.content_hash?.slice(0, 12)}</code>
-      </p>
+      <Crumb href={`#/runs/${id}`}>Run {id.slice(0, 8)}</Crumb>
+      <PageHeader
+        title={
+          <>
+            Comparison <StatusBadge status={run.status} />
+          </>
+        }
+        subtitle={
+          <>
+            {comparison.dataset_name} v{comparison.dataset_version_number} &middot; profile:{" "}
+            {comparison.evaluation_profile} &middot; dataset hash <code>{comparison.content_hash?.slice(0, 12)}</code>
+          </>
+        }
+      />
 
       <h3>Model summary</h3>
       <table>
@@ -126,8 +132,15 @@ export default function ComparisonPage({ id }: { id: string }) {
       </p>
 
       <h3>Recommendation</h3>
-      <p>{rank.recommended ? <strong>{rank.recommended}</strong> : <strong>No eligible model</strong>}</p>
-      <p>{rank.explanation}</p>
+      <div className="recommend">
+        <span className={`medal${rank.recommended ? "" : " none"}`}>
+          <TrophyIcon size={24} />
+        </span>
+        <div>
+          <p className="pick">{rank.recommended ? <strong>{rank.recommended}</strong> : <strong>No eligible model</strong>}</p>
+          <p>{rank.explanation}</p>
+        </div>
+      </div>
       <table>
         <thead>
           <tr>
@@ -172,7 +185,7 @@ export default function ComparisonPage({ id }: { id: string }) {
       </ul>
 
       <h3>Baseline and regressions</h3>
-      <p>
+      <div className="form-row">
         <label>
           Baseline{" "}
           <select value={choice} onChange={(e) => setChoice(e.target.value)}>
@@ -188,7 +201,7 @@ export default function ComparisonPage({ id }: { id: string }) {
         <button onClick={() => apply(choice || null)} disabled={choice === (run.baseline_run_id ?? "")}>
           Apply
         </button>
-      </p>
+      </div>
       {notice && <p className="bad">{notice}</p>}
 
       {regressions.state === "no_baseline" && <p className="muted">No baseline selected.</p>}

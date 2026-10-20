@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { createVersion, getDataset, getVersion, listVersions } from "../api/datasets";
 import ImportForm from "../components/ImportForm";
+import PageHeader, { Crumb } from "../components/PageHeader";
+import { ErrorMessage, Loading } from "../components/StateViews";
 import type { DatasetSummary, VersionDetail, VersionSummary } from "../types/dataset";
 
 export default function DatasetDetailPage({ id }: { id: string }) {
@@ -33,16 +35,13 @@ export default function DatasetDetailPage({ id }: { id: string }) {
       .catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load version"));
   }, [id, selected]);
 
-  if (error) return <p className="bad">{error}</p>;
-  if (!dataset) return <p>Loading...</p>;
+  if (error) return <ErrorMessage message={error} />;
+  if (!dataset) return <Loading />;
 
   return (
     <>
-      <p>
-        <a href="#/datasets">&larr; All datasets</a>
-      </p>
-      <h1>{dataset.name}</h1>
-      {dataset.description && <p>{dataset.description}</p>}
+      <Crumb href="#/datasets">All datasets</Crumb>
+      <PageHeader title={dataset.name} subtitle={dataset.description ?? undefined} />
 
       <h3>Versions (immutable)</h3>
       <table>
@@ -73,7 +72,7 @@ export default function DatasetDetailPage({ id }: { id: string }) {
       </table>
 
       {selected !== null && <h3>Cases in v{selected}</h3>}
-      {!detail && selected !== null && <p>Loading cases...</p>}
+      {!detail && selected !== null && <Loading what="Loading cases" />}
       {detail && (
         <table>
           <thead>

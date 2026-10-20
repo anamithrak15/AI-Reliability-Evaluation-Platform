@@ -8,6 +8,7 @@ import {
 } from "../api/auth";
 import { describeError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import PageHeader from "../components/PageHeader";
 
 const MIN_PASSWORD = 10;
 
@@ -221,7 +222,7 @@ export function AccountPage() {
 
   return (
     <>
-      <h1>Account</h1>
+      <PageHeader title="Account" subtitle="Your email address and password." />
       <section className="card">
         <h2>Email</h2>
         <p>

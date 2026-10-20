@@ -1,8 +1,10 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { AlertIcon, InboxIcon } from "./Icons";
 
 export function Loading({ what = "Loading" }: { what?: string }) {
   return (
-    <p role="status" className="muted">
+    <p role="status" className="loading">
+      <span className="spinner" aria-hidden="true" />
       {what}...
     </p>
   );
@@ -10,19 +12,27 @@ export function Loading({ what = "Loading" }: { what?: string }) {
 
 export function ErrorMessage({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <p role="alert" className="bad">
-      {message}{" "}
-      {onRetry && (
-        <button className="link" onClick={onRetry}>
-          Retry
-        </button>
-      )}
-    </p>
+    <div role="alert" className="alert-box bad">
+      <AlertIcon />
+      <p>
+        {message}{" "}
+        {onRetry && (
+          <button className="link" onClick={onRetry}>
+            Retry
+          </button>
+        )}
+      </p>
+    </div>
   );
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <p className="muted">{children}</p>;
+  return (
+    <div className="empty">
+      <InboxIcon size={30} />
+      <p>{children}</p>
+    </div>
+  );
 }
 
 interface BoundaryState {

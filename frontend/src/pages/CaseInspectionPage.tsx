@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { getCaseDetail } from "../api/runs";
 import { StatusBadge } from "../components/RunStatus";
+import PageHeader, { Crumb } from "../components/PageHeader";
 import { Empty, ErrorMessage, Loading } from "../components/StateViews";
 import { useApi } from "../hooks/useApi";
 import type { CaseResult } from "../types/run";
@@ -43,10 +44,8 @@ export default function CaseInspectionPage({ runId, caseKey }: { runId: string; 
 
   return (
     <>
-      <p>
-        <a href={`#/runs/${runId}`}>&larr; Run {runId.slice(0, 8)}</a>
-      </p>
-      <h1>Case {caseKey}</h1>
+      <Crumb href={`#/runs/${runId}`}>Run {runId.slice(0, 8)}</Crumb>
+      <PageHeader title={`Case ${caseKey}`} />
       {loading && !data && <Loading what="Loading case" />}
       {error && <ErrorMessage message={error} onRetry={reload} />}
       {data && (

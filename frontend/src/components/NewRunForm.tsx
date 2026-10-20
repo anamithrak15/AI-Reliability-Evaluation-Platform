@@ -81,7 +81,7 @@ export default function NewRunForm() {
       {loaded && datasets.length === 0 && <p className="muted">Create a dataset first.</p>}
       {loaded && datasets.length > 0 && (
         <>
-          <p>
+          <div className="form-row">
             <label>
               Dataset{" "}
               <select value={datasetId} onChange={(e) => setDatasetId(e.target.value)}>
@@ -102,17 +102,17 @@ export default function NewRunForm() {
                 ))}
               </select>
             </label>
-          </p>
-          <p>
-            Models:{" "}
+          </div>
+          <div className="model-picks">
+            <span className="muted">Models:</span>
             {models.map((m) => (
-              <label key={m.alias} title={m.description} style={{ marginRight: "1rem" }}>
+              <label key={m.alias} title={m.description} className="model-pick">
                 <input type="checkbox" checked={selected.includes(m.alias)} onChange={() => toggle(m.alias)} />{" "}
                 {m.alias}
               </label>
             ))}
-          </p>
-          <p>
+          </div>
+          <div className="form-row">
             <label>
               Profile{" "}
               <select value={profile} onChange={(e) => setProfile(e.target.value)}>
@@ -131,11 +131,11 @@ export default function NewRunForm() {
                 max={10}
                 value={concurrency}
                 onChange={(e) => setConcurrency(Number(e.target.value))}
-                style={{ width: "4rem" }}
+                style={{ width: "4.5rem" }}
               />
             </label>
-          </p>
-          <button disabled={busy || !versionId || selected.length === 0} onClick={submit}>
+          </div>
+          <button className="primary" disabled={busy || !versionId || selected.length === 0} onClick={submit}>
             {busy ? "Starting..." : "Start run"}
           </button>
         </>

@@ -58,7 +58,7 @@ export default function ImportForm({ label, hint, onSubmit }: Props) {
         onChange={(e) => setText(e.target.value)}
         placeholder="Paste dataset JSON here"
       />
-      <button disabled={busy || !text.trim()} onClick={submit}>
+      <button className="primary" disabled={busy || !text.trim()} onClick={submit}>
         {busy ? "Submitting..." : "Submit"}
       </button>
       {error && <p className="bad">{error}</p>}
