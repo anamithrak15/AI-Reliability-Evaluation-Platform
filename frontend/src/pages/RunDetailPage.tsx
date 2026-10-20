@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cancelRun, getRun, listResults } from "../api/runs";
 import { ProgressBar, StatusBadge } from "../components/RunStatus";
+import { AlertIcon } from "../components/Icons";
+import PageHeader, { Crumb } from "../components/PageHeader";
 import { Empty, ErrorMessage, Loading } from "../components/StateViews";
 import type { Page } from "../types/dataset";
 import { ACTIVE_STATUSES, type CaseResult, type Run } from "../types/run";
@@ -56,44 +58,61 @@ export default function RunDetailPage({ id }: { id: string }) {
 
   return (
     <>
-      <p>
-        <a href="#/runs">&larr; All runs</a>
-      </p>
-      <h1>
-        Run {run.id.slice(0, 8)} <StatusBadge status={run.status} />
-      </h1>
-      <p>
-        {run.config.dataset_name} v{run.config.dataset_version_number} &middot; models:{" "}
-        {run.config.model_aliases.join(", ")} &middot; profile: {run.config.evaluation_profile} &middot;
-        concurrency: {run.config.max_concurrency}
-        {run.config.requested.max_concurrency !== run.config.max_concurrency &&
-          ` (requested ${run.config.requested.max_concurrency}, capped by server)`}
-      </p>
-      <ProgressBar run={run} />
-      <p className="muted">
-        {Object.entries(run.progress.by_status)
-          .map(([k, v]) => `${k}: ${v}`)
-          .join(" | ") || "no results yet"}
-      </p>
+      <Crumb href="#/runs">All runs</Crumb>
+      <PageHeader
+        title={
+          <>
+            Run {run.id.slice(0, 8)} <StatusBadge status={run.status} />
+          </>
+        }
+        subtitle={`${run.config.dataset_name} v${run.config.dataset_version_number}`}
+        actions={
+          ACTIVE_STATUSES.includes(run.status) ? (
+            <button onClick={cancel}>Cancel run</button>
+          ) : (
+            <a className="btn primary" href={`#/runs/${run.id}/compare`}>
+              Compare, baseline and recommendation &rarr;
+            </a>
+          )
+        }
+      />
+      <ul className="chips">
+        <li className="chip">
+          models: <strong>{run.config.model_aliases.join(", ")}</strong>
+        </li>
+        <li className="chip">
+          profile: <strong>{run.config.evaluation_profile}</strong>
+        </li>
+        <li className="chip">
+          concurrency: <strong>{run.config.max_concurrency}</strong>
+          {run.config.requested.max_concurrency !== run.config.max_concurrency &&
+            ` (requested ${run.config.requested.max_concurrency}, capped by server)`}
+        </li>
+      </ul>
+      <div className="card">
+        <ProgressBar run={run} />
+        <p className="muted small">
+          {Object.entries(run.progress.by_status)
+            .map(([k, v]) => `${k}: ${v}`)
+            .join(" | ") || "no results yet"}
+        </p>
+      </div>
       {run.error_summary && <p className="bad">Issues: {run.error_summary}</p>}
       {(run.status === "completed_with_errors" || run.status === "failed") && (
-        <p className="bad" role="alert">
-          {run.status === "failed"
-            ? "No model call succeeded in this run."
-            : "Partial failure: some model calls did not succeed. Successful results below are still valid."}{" "}
-          Filter by status to see the failed cases.
-        </p>
-      )}
-      {ACTIVE_STATUSES.includes(run.status) && <button onClick={cancel}>Cancel run</button>}
-      {!ACTIVE_STATUSES.includes(run.status) && (
-        <p>
-          <a href={`#/runs/${run.id}/compare`}>Compare, baseline and recommendation &rarr;</a>
-        </p>
+        <div className="alert-box bad" role="alert">
+          <AlertIcon />
+          <p>
+            {run.status === "failed"
+              ? "No model call succeeded in this run."
+              : "Partial failure: some model calls did not succeed. Successful results below are still valid."}{" "}
+            Filter by status to see the failed cases.
+          </p>
+        </div>
       )}
       {error && <ErrorMessage message={error} onRetry={load} />}
 
       <h3>Case results</h3>
-      <p>
+      <div className="form-row">
         <label>
           Model{" "}
           <select
@@ -124,7 +143,7 @@ export default function RunDetailPage({ id }: { id: string }) {
             ))}
           </select>
         </label>
-      </p>
+      </div>
       {results && results.items.length === 0 && (
         <Empty>{ACTIVE_STATUSES.includes(run.status) ? "Waiting for the first results..." : "No results match these filters."}</Empty>
       )}

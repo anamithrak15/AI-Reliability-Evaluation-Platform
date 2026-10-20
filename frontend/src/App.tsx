@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { listModels } from "./api/runs";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
+import { BrandMark, CheckIcon, DatabaseIcon, MenuIcon, MoonIcon, PlayIcon, PulseIcon, SunIcon, UserIcon } from "./components/Icons";
 import { ErrorBoundary, Loading } from "./components/StateViews";
+import { useTheme } from "./theme";
 import AuthPage from "./pages/AuthPage";
 import { AccountPage, ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from "./pages/AccountPages";
 import CaseInspectionPage from "./pages/CaseInspectionPage";
@@ -86,14 +88,49 @@ export default function App() {
   );
 }
 
+const NAV: { href: string; label: string; icon: ReactNode }[] = [
+  { href: "#/datasets", label: "Datasets", icon: <DatabaseIcon /> },
+  { href: "#/runs", label: "Runs", icon: <PlayIcon /> },
+  { href: "#/status", label: "System status", icon: <PulseIcon /> },
+  { href: "#/account", label: "Account", icon: <UserIcon /> },
+];
+
+const HIGHLIGHTS = [
+  "Compare models on the same versioned dataset",
+  "Catch quality, latency and cost regressions",
+  "Get an explainable recommendation, not a guess",
+];
+
+function isActive(hash: string, href: string): boolean {
+  const path = hash.split("?")[0];
+  if (href === "#/datasets" && (path === "#" || path === "#/")) return true;
+  return path === href || path.startsWith(`${href}/`);
+}
+
+function Brand({ subtitle }: { subtitle?: string }) {
+  return (
+    <a className="brand" href="#/datasets">
+      <BrandMark />
+      <span>
+        AI Reliability
+        {subtitle && <small>{subtitle}</small>}
+      </span>
+    </a>
+  );
+}
+
 export function Shell() {
   const hash = useHash();
   const { state, logout } = useAuth();
+  const { theme, toggle } = useTheme();
+  const [menuOpen, setMenuOpen] = useState(false);
   const authPage = hash === "#/login" || hash === "#/register";
 
   useEffect(() => {
     if (state.status === "authenticated" && authPage) window.location.hash = "#/datasets";
   }, [state.status, authPage]);
+
+  useEffect(() => setMenuOpen(false), [hash]);
 
   if (state.status === "loading") {
     return (
@@ -107,42 +144,80 @@ export function Shell() {
 
   if (state.status === "anonymous") {
     return (
-      <div className="layout">
-        <main>
-          <h2>AI Reliability</h2>
-          {publicPage(hash) ?? (
-            <AuthPage key={hash} mode={hash === "#/register" ? "register" : "login"} notice={state.notice} />
-          )}
+      <div className="auth-shell">
+        <section className="auth-hero">
+          <Brand />
+          <p className="tagline">Choose AI models with evidence, not instinct.</p>
+          <ul>
+            {HIGHLIGHTS.map((h) => (
+              <li key={h}>
+                <CheckIcon size={18} />
+                <span>{h}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+        <main className="auth-main">
+          <Brand />
+          <div className="auth-stack">
+            {publicPage(hash) ?? (
+              <AuthPage key={hash} mode={hash === "#/register" ? "register" : "login"} notice={state.notice} />
+            )}
+          </div>
         </main>
       </div>
     );
   }
 
+  const initial = state.user.email.charAt(0) || "?";
+  const dark = theme === "dark";
+
   return (
     <div className="layout">
-      <aside className="sidebar">
-        <h2>AI Reliability</h2>
+      <div className="topbar">
+        <Brand />
+        <button className="icon-btn" aria-label="Open menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)}>
+          <MenuIcon />
+        </button>
+      </div>
+      <div className={`scrim${menuOpen ? " open" : ""}`} onClick={() => setMenuOpen(false)} />
+      <aside className={`sidebar${menuOpen ? " open" : ""}`}>
+        <Brand subtitle="Model evaluation" />
         <nav aria-label="Main">
           <ul>
-            <li>
-              <a href="#/datasets">Datasets</a>
-            </li>
-            <li>
-              <a href="#/runs">Runs</a>
-            </li>
-            <li className="muted">Comparisons: open a finished run</li>
-            <li>
-              <a href="#/status">System status</a>
-            </li>
-            <li>
-              <a href="#/account">Account</a>
-            </li>
+            {NAV.map((item) => (
+              <li key={item.href}>
+                <a href={item.href} aria-current={isActive(hash, item.href) ? "page" : undefined}>
+                  {item.icon}
+                  {item.label}
+                </a>
+              </li>
+            ))}
           </ul>
+          <p className="nav-hint">Comparisons: open a finished run</p>
         </nav>
-        <p className="muted account">
-          Signed in as <strong>{state.user.email}</strong>
-        </p>
-        <button onClick={() => logout()}>Sign out</button>
+        <div className="sidebar-foot">
+          <div className="account">
+            <span className="avatar" aria-hidden="true">
+              {initial}
+            </span>
+            <div>
+              <span className="muted small">Signed in as</span>
+              <strong title={state.user.email}>{state.user.email}</strong>
+            </div>
+          </div>
+          <div className="foot-actions">
+            <button onClick={() => logout()}>Sign out</button>
+            <button
+              className="icon-btn"
+              onClick={toggle}
+              aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
+              title={dark ? "Switch to light theme" : "Switch to dark theme"}
+            >
+              {dark ? <SunIcon /> : <MoonIcon />}
+            </button>
+          </div>
+        </div>
       </aside>
       <main>
         <Banner />

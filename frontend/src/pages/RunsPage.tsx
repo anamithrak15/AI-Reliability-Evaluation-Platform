@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { listRuns } from "../api/runs";
 import NewRunForm from "../components/NewRunForm";
 import { ProgressBar, StatusBadge } from "../components/RunStatus";
+import PageHeader from "../components/PageHeader";
 import { Empty, ErrorMessage, Loading } from "../components/StateViews";
 import { ACTIVE_STATUSES, type Run } from "../types/run";
 
@@ -28,7 +29,7 @@ export default function RunsPage() {
 
   return (
     <>
-      <h1>Runs</h1>
+      <PageHeader title="Runs" subtitle="Each run scores the selected models on one dataset version." />
       {error && <ErrorMessage message={error} onRetry={load} />}
       {!runs && !error && <Loading what="Loading runs" />}
       {runs && runs.length === 0 && (
