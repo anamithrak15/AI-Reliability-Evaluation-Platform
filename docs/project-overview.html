@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Reliability &amp; Evaluation Platform - Project Overview</title>
+<style>
+  :root {
+    --bg: #ffffff; --panel: #f6f8fa; --text: #1f2328; --muted: #59636e; --line: #d1d9e0;
+    --accent: #0969da; --good: #1a7f37; --warn: #9a6700; --bad: #cf222e;
+    --node: #ffffff; --node-line: #8c959f; --group: #f6f8fa; --arrow: #59636e;
+    --c-client: #ddf4ff; --c-api: #dafbe1; --c-data: #fff8c5; --c-worker: #fbefff; --c-ext: #ffebe9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --panel: #151b23; --text: #e6edf3; --muted: #9198a1; --line: #3d444d;
+      --accent: #4493f8; --good: #3fb950; --warn: #d29922; --bad: #f85149;
+      --node: #151b23; --node-line: #6e7681; --group: #0d1117; --arrow: #9198a1;
+      --c-client: #0c2d6b; --c-api: #0f3d1e; --c-data: #3d2e00; --c-worker: #3a1d5c; --c-ext: #4d1d1d;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); max-width: 1280px; margin: 0 auto; }
+  nav.toc {
+    position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto;
+    padding: 32px 20px; border-right: 1px solid var(--line); font-size: 14px;
+  }
+  nav.toc strong { display: block; margin-bottom: 12px; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+  nav.toc a { display: block; padding: 4px 0; color: var(--muted); text-decoration: none; }
+  nav.toc a:hover { color: var(--accent); }
+  main { padding: 48px 40px 96px; min-width: 0; }
+  header.hero { padding-bottom: 28px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  header.hero h1 { font-size: 2.1rem; line-height: 1.2; margin: 0 0 12px; }
+  header.hero p { color: var(--muted); font-size: 1.1rem; margin: 0; max-width: 62ch; }
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .pill { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 2px 12px; font-size: 13px; }
+  section { padding-top: 40px; }
+  h2 { font-size: 1.5rem; margin: 0 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+  h3 { font-size: 1.12rem; margin: 28px 0 8px; }
+  p, li { max-width: 78ch; }
+  code { font: 0.9em ui-monospace, SFMono-Regular, Consolas, monospace; background: var(--panel); padding: 1px 6px; border-radius: 6px; border: 1px solid var(--line); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 16px 0; }
+  .card { border: 1px solid var(--line); background: var(--panel); border-radius: 10px; padding: 14px 16px; }
+  .card h4 { margin: 0 0 6px; font-size: 1rem; }
+  .card p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.94rem; display: block; overflow-x: auto; }
+  th, td { text-align: left; padding: 8px 12px; border: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--panel); white-space: nowrap; }
+  figure { margin: 20px 0; border: 1px solid var(--line); border-radius: 10px; padding: 12px; background: var(--bg); overflow-x: auto; }
+  figure svg { display: block; width: 100%; height: auto; min-width: 640px; }
+  figcaption { color: var(--muted); font-size: 0.88rem; padding-top: 8px; text-align: center; }
+  .callout { border-left: 4px solid var(--accent); background: var(--panel); padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; }
+  .callout.warn { border-color: var(--warn); }
+  .good { color: var(--good); } .bad { color: var(--bad); }
+  pre { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; overflow-x: auto; font-size: 0.88rem; line-height: 1.5; }
+  /* svg */
+  svg text { fill: var(--text); font: 13px system-ui, sans-serif; }
+  svg .sub { fill: var(--muted); font-size: 11.5px; }
+  svg .ttl { font-weight: 600; }
+  svg .box { stroke: var(--node-line); stroke-width: 1.4; }
+  svg .group { fill: none; stroke: var(--node-line); stroke-width: 1.2; stroke-dasharray: 6 4; }
+  svg .glabel { fill: var(--muted); font-size: 11.5px; font-weight: 600; letter-spacing: .03em; }
+  svg .edge { stroke: var(--arrow); stroke-width: 1.5; fill: none; }
+  svg .dash { stroke-dasharray: 5 4; }
+  svg .life { stroke: var(--line); stroke-width: 1.2; stroke-dasharray: 3 4; }
+  svg .halo { paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; }
+  svg .client { fill: var(--c-client); } svg .api { fill: var(--c-api); } svg .data { fill: var(--c-data); }
+  svg .worker { fill: var(--c-worker); } svg .ext { fill: var(--c-ext); }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    nav.toc { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+    main { padding: 28px 18px 72px; }
+  }
+  @media print { nav.toc { display: none; } .layout { display: block; } figure { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc" aria-label="Contents">
+  <strong>Contents</strong>
+  <a href="#problem">1. Problem statement</a>
+  <a href="#solution">2. Solution</a>
+  <a href="#users">3. Users and scenarios</a>
+  <a href="#hld">4. High-level design</a>
+  <a href="#lld">5. Low-level design</a>
+  <a href="#data">6. Data model</a>
+  <a href="#security">7. Security</a>
+  <a href="#deploy">8. Deployment</a>
+  <a href="#quality">9. Testing and CI</a>
+  <a href="#benefits">10. Benefits</a>
+  <a href="#limits">11. Limitations</a>
+  <a href="#roadmap">12. Roadmap</a>
+</nav>
+<main>
+
+<header class="hero">
+  <h1>AI Reliability &amp; Evaluation Platform</h1>
+  <p>Run several language models over the same versioned dataset, score every answer, and compare them on quality, latency, tokens, estimated cost and failure rate, with regression detection and an explainable recommendation.</p>
+  <div class="pills">
+    <span class="pill">FastAPI</span><span class="pill">PostgreSQL</span><span class="pill">Redis + RQ</span>
+    <span class="pill">React + TypeScript</span><span class="pill">LiteLLM</span><span class="pill">Render + Vercel</span>
+  </div>
+</header>
+
+<section id="problem">
+<h2>1. Problem statement</h2>
+<p>Teams that build on large language models choose and change models with little evidence. A model is picked because a demo looked good, then a provider updates it, a prompt is edited or a cheaper model is swapped in, and nobody can say whether quality dropped.</p>
+<div class="grid">
+  <div class="card"><h4>Decisions by anecdote</h4><p>Eyeballing a few answers does not show which model is better on the cases that matter, or by how much.</p></div>
+  <div class="card"><h4>Silent regressions</h4><p>Quality, latency or failure rate can slip after a model or prompt change, and nothing flags it.</p></div>
+  <div class="card"><h4>Hidden trade-offs</h4><p>The best model on quality may be slow or expensive. Quality, speed, cost and reliability must be weighed together.</p></div>
+  <div class="card"><h4>Irreproducible tests</h4><p>Ad-hoc prompts in a notebook cannot be re-run on identical inputs, so two comparisons are never truly comparable.</p></div>
+  <div class="card"><h4>Cost surprises</h4><p>Running many models over many cases against paid APIs can spend real money before anyone notices.</p></div>
+  <div class="card"><h4>Misleading numbers</h4><p>Failed calls counted as zero, or missing prices shown as free, make results look better or worse than they are.</p></div>
+</div>
+</section>
+
+<section id="solution">
+<h2>2. Solution</h2>
+<p>The platform turns model selection into a repeatable experiment. A user imports a dataset of test cases, runs one or more models over it, and gets scored, comparable results. A baseline run turns every later run into a regression check.</p>
+<table>
+  <tr><th>Capability</th><th>How it works</th></tr>
+  <tr><td>Versioned datasets</td><td>JSON import; each version is immutable and has a SHA-256 content hash. Re-importing identical content is rejected, so a result always refers to exact inputs.</td></tr>
+  <tr><td>Asynchronous runs</td><td>A case x model matrix runs on a worker with bounded concurrency, retries only for transient errors, per-model spend caps, cancellation and idempotent job delivery.</td></tr>
+  <tr><td>Scoring</td><td>Exact match, contains, regex, JSON Schema and classification evaluators. A case that cannot be scored gets <code>null</code>, never zero.</td></tr>
+  <tr><td>Comparison</td><td>Success and failure rate, quality, p50 and p95 latency (successful calls), tokens and estimated cost per model. Missing usage or price is shown as <em>unavailable</em>, never as 0.</td></tr>
+  <tr><td>Regression detection</td><td>Compares a run with a compatible baseline (same dataset content and evaluation profile) using configurable thresholds, sample-size guards and severities.</td></tr>
+  <tr><td>Recommendation</td><td>Hard constraints remove unsuitable models first; the rest are ranked by a documented weighted score. Every excluded model gets its reasons.</td></tr>
+  <tr><td>Case inspection</td><td>For one case, shows the prompt, the expected answer and every model's output side by side.</td></tr>
+  <tr><td>Accounts</td><td>Email and password sign-in, private data per account, optional email verification, password reset, rate limits and quotas.</td></tr>
+</table>
+<div class="callout"><strong>Demo mode.</strong> Deterministic mock models are always available, so the whole workflow runs without calling a paid provider. Live models are opt-in through LiteLLM.</div>
+</section>
+
+<section id="users">
+<h2>3. Users and scenarios</h2>
+<table>
+  <tr><th>Scenario</th><th>What the user does</th><th>What they get</th></tr>
+  <tr><td>Choose a model</td><td>Runs two or three candidates on one dataset</td><td>A ranked table and a recommendation with reasons</td></tr>
+  <tr><td>Check a change</td><td>Sets the last good run as baseline, then re-runs after a prompt or model change</td><td>Regression findings with severity and explanation</td></tr>
+  <tr><td>Debug a failure</td><td>Opens a failing case</td><td>The exact prompt, expected answer and each model's output or error</td></tr>
+  <tr><td>Control spend</td><td>Sets a per-model budget</td><td>Runs stop spending at the cap; cost shown as an estimate</td></tr>
+</table>
+</section>
+
+<section id="hld">
+<h2>4. High-level design</h2>
+<p>A single-page React app talks to a FastAPI service through one origin. The API is the only component that users reach. It stores everything in PostgreSQL, uses Redis for rate-limit counters and the job queue, and hands long-running evaluation to a worker. On free hosting the worker runs inside the API process.</p>
+
+<figure>
+<svg viewBox="0 0 980 500" role="img" aria-label="High-level architecture">
+  <defs>
+    <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--arrow)"/></marker>
+  </defs>
+  <rect class="group" x="195" y="130" width="170" height="150" rx="10"/><text class="glabel" x="205" y="148">VERCEL</text>
+  <rect class="group" x="380" y="40" width="415" height="330" rx="10"/><text class="glabel" x="392" y="58">RENDER (free tier)</text>
+
+  <rect class="box client" x="20" y="170" width="140" height="70" rx="8"/>
+  <text class="ttl" x="90" y="199" text-anchor="middle">Browser</text><text class="sub" x="90" y="218" text-anchor="middle">React + Vite SPA</text>
+
+  <rect class="box client" x="210" y="170" width="140" height="70" rx="8"/>
+  <text class="ttl" x="280" y="199" text-anchor="middle">Edge proxy</text><text class="sub" x="280" y="218" text-anchor="middle">/api rewrite, headers</text>
+
+  <rect class="box api" x="400" y="170" width="160" height="70" rx="8"/>
+  <text class="ttl" x="480" y="199" text-anchor="middle">FastAPI API</text><text class="sub" x="480" y="218" text-anchor="middle">auth, datasets, runs</text>
+
+  <rect class="box data" x="620" y="70" width="150" height="70" rx="8"/>
+  <text class="ttl" x="695" y="99" text-anchor="middle">PostgreSQL</text><text class="sub" x="695" y="118" text-anchor="middle">source of truth</text>
+
+  <rect class="box data" x="620" y="170" width="150" height="70" rx="8"/>
+  <text class="ttl" x="695" y="199" text-anchor="middle">Redis</text><text class="sub" x="695" y="218" text-anchor="middle">rate limits, job queue</text>
+
+  <rect class="box worker" x="620" y="290" width="150" height="70" rx="8"/>
+  <text class="ttl" x="695" y="319" text-anchor="middle">Evaluation worker</text><text class="sub" x="695" y="338" text-anchor="middle">RQ, or inline thread</text>
+
+  <rect class="box ext" x="830" y="290" width="130" height="70" rx="8"/>
+  <text class="ttl" x="895" y="319" text-anchor="middle">Model providers</text><text class="sub" x="895" y="338" text-anchor="middle">mock, Ollama, hosted</text>
+
+  <rect class="box ext" x="400" y="420" width="160" height="60" rx="8"/>
+  <text class="ttl" x="480" y="446" text-anchor="middle">Brevo</text><text class="sub" x="480" y="463" text-anchor="middle">email over HTTPS</text>
+
+  <path class="edge" marker-end="url(#a1)" d="M160 205H208"/>
+  <path class="edge" marker-end="url(#a1)" d="M350 205H398"/>
+  <path class="edge" marker-end="url(#a1)" d="M560 185L618 105"/>
+  <path class="edge" marker-end="url(#a1)" d="M560 205H618"/>
+  <path class="edge dash" marker-end="url(#a1)" d="M560 228L618 312"/>
+  <path class="edge" marker-end="url(#a1)" d="M695 240V288"/>
+  <path class="edge" marker-end="url(#a1)" d="M770 310H785V105H772"/>
+  <path class="edge" marker-end="url(#a1)" d="M770 335H828"/>
+  <path class="edge" marker-end="url(#a1)" d="M480 240V418"/>
+  <text class="sub halo" x="163" y="190">HTTPS</text>
+  <text class="sub halo" x="588" y="278">inline mode</text>
+  <text class="sub halo" x="490" y="335">verification, reset</text>
+</svg>
+<figcaption>Figure 1. Components and data flow. Dashed arrow: the free-tier inline worker path.</figcaption>
+</figure>
+
+<h3>Design decisions</h3>
+<table>
+  <tr><th>Decision</th><th>Reason</th></tr>
+  <tr><td>One origin through an edge proxy</td><td>The browser sees a single host, so session cookies stay first-party and no cross-origin (CORS) access is needed.</td></tr>
+  <tr><td>PostgreSQL as the source of truth</td><td>Runs, results and summaries are relational and need transactions and compare-and-set state changes.</td></tr>
+  <tr><td>Redis for counters and the queue</td><td>Cheap shared state for rate limits and job delivery. The rate limiter fails open, so a Redis outage never takes the API down.</td></tr>
+  <tr><td>Worker separate from the API</td><td>Evaluations are slow and bursty. A separate worker keeps request latency stable.</td></tr>
+  <tr><td>Inline worker mode</td><td>Free hosting offers no background workers, so the API process can run evaluations itself. Unfinished runs resume on start-up. This assumes one API instance.</td></tr>
+  <tr><td>LiteLLM behind one adapter</td><td>One call path for mock, local and hosted models, with timeouts, usage and price lookup in one place.</td></tr>
+  <tr><td>Immutable dataset versions</td><td>A result is only meaningful if the exact inputs can be identified later.</td></tr>
+</table>
+
+<h3>Technology stack</h3>
+<table>
+  <tr><th>Layer</th><th>Choice</th></tr>
+  <tr><td>Frontend</td><td>React 18, TypeScript, Vite, Vitest and Testing Library</td></tr>
+  <tr><td>API</td><td>Python, FastAPI, Pydantic, SQLAlchemy, Alembic</td></tr>
+  <tr><td>Data</td><td>PostgreSQL (JSONB for case inputs and configs), Redis</td></tr>
+  <tr><td>Jobs</td><td>RQ worker, or an in-process thread pool</td></tr>
+  <tr><td>Models</td><td>Deterministic mock adapter; LiteLLM for live providers</td></tr>
+  <tr><td>Auth</td><td>argon2id password hashes, signed session cookie (JWT)</td></tr>
+  <tr><td>Delivery</td><td>Docker, Docker Compose, GitHub Actions, Render, Vercel</td></tr>
+</table>
+</section>
+
+<section id="lld">
+<h2>5. Low-level design</h2>
+
+<h3>5.1 Backend layout</h3>
+<table>
+  <tr><th>Package</th><th>Responsibility</th></tr>
+  <tr><td><code>app/api</code></td><td>HTTP routers: auth, datasets, runs, catalog, health. Thin: parse, authorise, delegate.</td></tr>
+  <tr><td><code>app/services</code></td><td>Business logic: <code>auth_service</code>, <code>dataset_service</code>, <code>run_service</code>, <code>comparison_service</code>, <code>queue</code>, <code>resume</code>, <code>run_state</code>, <code>mailer</code>.</td></tr>
+  <tr><td><code>app/evaluation</code></td><td>The evaluation engine: <code>orchestrator</code>, <code>evaluators</code>, <code>summary</code>, <code>regression</code>, <code>ranking</code>, <code>llm_adapter</code>, <code>mock_adapter</code>, <code>registry</code>.</td></tr>
+  <tr><td><code>app/models</code>, <code>app/db</code></td><td>SQLAlchemy entities, sessions, seeding of the demo dataset.</td></tr>
+  <tr><td><code>app/schemas</code></td><td>Pydantic request and response models. Validation errors return <code>400</code> in a single envelope.</td></tr>
+  <tr><td><code>app/auth</code>, <code>app/core</code></td><td>Password hashing, tokens, session dependencies; configuration, rate limiting, client address, error envelope, logging.</td></tr>
+</table>
+<p>Errors always use the shape <code>{code, message, details?}</code>. Validation errors are <code>400</code>, missing or foreign resources <code>404</code>, conflicts <code>409</code>, rate limits and quotas <code>429</code>.</p>
+
+<h3>5.2 Run lifecycle</h3>
+<p>Run creation, queuing and execution, from the user's click to the stored results.</p>
+<figure>
+<svg viewBox="0 0 960 520" role="img" aria-label="Run sequence">
+  <defs>
+    <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--arrow)"/></marker>
+  </defs>
+  <g>
+    <rect class="box client" x="15" y="8" width="110" height="34" rx="6"/><text class="ttl" x="70" y="30" text-anchor="middle">Browser</text>
+    <rect class="box api" x="175" y="8" width="110" height="34" rx="6"/><text class="ttl" x="230" y="30" text-anchor="middle">API</text>
+    <rect class="box data" x="335" y="8" width="110" height="34" rx="6"/><text class="ttl" x="390" y="30" text-anchor="middle">Queue</text>
+    <rect class="box worker" x="495" y="8" width="110" height="34" rx="6"/><text class="ttl" x="550" y="30" text-anchor="middle">Worker</text>
+    <rect class="box data" x="655" y="8" width="110" height="34" rx="6"/><text class="ttl" x="710" y="30" text-anchor="middle">PostgreSQL</text>
+    <rect class="box ext" x="815" y="8" width="110" height="34" rx="6"/><text class="ttl" x="870" y="30" text-anchor="middle">Model</text>
+  </g>
+  <path class="life" d="M70 42V505M230 42V505M390 42V505M550 42V505M710 42V505M870 42V505"/>
+
+  <path class="edge" marker-end="url(#a2)" d="M70 78H228"/><text class="sub halo" x="76" y="72">POST /runs (Idempotency-Key)</text>
+  <path class="edge" marker-end="url(#a2)" d="M230 114H708"/><text class="sub halo" x="236" y="108">insert run: queued, with config snapshot</text>
+  <path class="edge" marker-end="url(#a2)" d="M230 150H388"/><text class="sub halo" x="236" y="144">enqueue run id</text>
+  <path class="edge dash" marker-end="url(#a2)" d="M228 186H72"/><text class="sub halo" x="76" y="180">202 Accepted + run id</text>
+  <path class="edge" marker-end="url(#a2)" d="M390 222H548"/><text class="sub halo" x="396" y="216">deliver job</text>
+  <path class="edge" marker-end="url(#a2)" d="M550 258H708"/><text class="sub halo" x="556" y="252">claim: queued to running (compare-and-set)</text>
+  <path class="edge" marker-end="url(#a2)" d="M550 294H868"/><text class="sub halo" x="556" y="288">per case x model, retry transient errors only</text>
+  <path class="edge dash" marker-end="url(#a2)" d="M868 330H552"/><text class="sub halo" x="556" y="324">output, tokens, latency</text>
+  <path class="edge" marker-end="url(#a2)" d="M550 366H708"/><text class="sub halo" x="556" y="360">score, then store result and metrics</text>
+  <path class="edge" marker-end="url(#a2)" d="M550 402H708"/><text class="sub halo" x="556" y="396">finalize: summaries, regressions, status</text>
+  <path class="edge" marker-end="url(#a2)" d="M70 450H228"/><text class="sub halo" x="76" y="444">poll run, results, comparison</text>
+  <path class="edge dash" marker-end="url(#a2)" d="M228 484H72"/><text class="sub halo" x="76" y="478">progress, then final data</text>
+</svg>
+<figcaption>Figure 2. Creating and executing a run.</figcaption>
+</figure>
+<ul>
+  <li><strong>Idempotency.</strong> The same <code>Idempotency-Key</code> returns the original run, scoped per account, so a retried request does not start a second run.</li>
+  <li><strong>Claiming.</strong> The worker only starts a run it can atomically move from <code>queued</code> to <code>running</code>. A stale running run (no progress beyond a configured time) can be re-claimed after a crash.</li>
+  <li><strong>Stopping.</strong> Between calls the worker checks for cancellation and the run deadline, so a cancel or timeout stops work cleanly.</li>
+  <li><strong>Retries.</strong> Only transient failures (timeouts, provider errors) are retried, with backoff. Other failures are recorded as the case result.</li>
+  <li><strong>Budget.</strong> A per-model USD cap applies to priced calls only; in-flight calls can exceed it slightly.</li>
+</ul>
+
+<h3>5.3 Run state machine</h3>
+<figure>
+<svg viewBox="0 0 900 290" role="img" aria-label="Run states">
+  <defs>
+    <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--arrow)"/></marker>
+  </defs>
+  <rect class="box data" x="30" y="110" width="130" height="50" rx="25"/><text class="ttl" x="95" y="140" text-anchor="middle">queued</text>
+  <rect class="box worker" x="270" y="110" width="130" height="50" rx="25"/><text class="ttl" x="335" y="140" text-anchor="middle">running</text>
+  <rect class="box api" x="600" y="10" width="250" height="44" rx="22"/><text class="ttl" x="725" y="37" text-anchor="middle">completed</text>
+  <rect class="box api" x="600" y="80" width="250" height="44" rx="22"/><text class="ttl" x="725" y="107" text-anchor="middle">completed_with_errors</text>
+  <rect class="box ext" x="600" y="150" width="250" height="44" rx="22"/><text class="ttl" x="725" y="177" text-anchor="middle">failed</text>
+  <rect class="box ext" x="600" y="220" width="250" height="44" rx="22"/><text class="ttl" x="725" y="247" text-anchor="middle">cancelled</text>
+  <path class="edge" marker-end="url(#a3)" d="M160 135H268"/><text class="sub halo" x="184" y="127">claimed</text>
+  <path class="edge" marker-end="url(#a3)" d="M400 128L598 34"/>
+  <path class="edge" marker-end="url(#a3)" d="M400 133L598 102"/>
+  <path class="edge" marker-end="url(#a3)" d="M400 140L598 168"/>
+  <path class="edge" marker-end="url(#a3)" d="M390 158L598 238"/>
+  <path class="edge dash" marker-end="url(#a3)" d="M95 160V270H598"/><text class="sub halo" x="110" y="262">cancel before start</text>
+</svg>
+<figcaption>Figure 3. Allowed transitions. The four right-hand states are terminal; every transition is validated before it is applied.</figcaption>
+</figure>
+<p><code>completed_with_errors</code> means the run finished but some cases failed. Comparison and baselines are available for finished states; a baseline must be <code>completed</code> or <code>completed_with_errors</code>.</p>
+
+<h3>5.4 Evaluators</h3>
+<table>
+  <tr><th>Evaluator</th><th>Checks</th></tr>
+  <tr><td><code>exact_match</code></td><td>Output equals the expected value after configurable normalisation steps.</td></tr>
+  <tr><td><code>contains</code></td><td>Output contains a required string.</td></tr>
+  <tr><td><code>regex</code></td><td>Output matches a pattern.</td></tr>
+  <tr><td><code>json_schema</code></td><td>Output parses as JSON and satisfies a schema.</td></tr>
+  <tr><td><code>classification</code></td><td>The label field in the JSON output matches the expected label.</td></tr>
+</table>
+<p>Each evaluator returns named metrics. A metric that cannot be computed is stored as <code>null</code>; summaries ignore nulls instead of counting them as zero.</p>
+
+<h3>5.5 Summaries, regressions and ranking</h3>
+<p>When a run finishes, one summary per model is stored: executed count, success and failure rate, quality, p50 and p95 latency over successful calls, tokens and estimated cost.</p>
+<table>
+  <tr><th>Setting</th><th>Default</th><th>Meaning</th></tr>
+  <tr><td><code>REGRESSION_QUALITY_DROP</code></td><td>0.03</td><td>Absolute quality drop that raises a finding</td></tr>
+  <tr><td><code>REGRESSION_FAILURE_RISE</code></td><td>0.02</td><td>Absolute failure-rate rise</td></tr>
+  <tr><td><code>REGRESSION_P95_RISE_PCT</code></td><td>0.25</td><td>Relative p95 latency rise</td></tr>
+  <tr><td><code>REGRESSION_COST_RISE_PCT</code></td><td>0.20</td><td>Relative cost rise</td></tr>
+  <tr><td><code>REGRESSION_MIN_SAMPLES</code></td><td>5</td><td>Below this many cases, no finding is raised</td></tr>
+</table>
+<p>A baseline is only accepted if its dataset content and evaluation profile match the current run. Otherwise the request fails with a clear message and nothing is saved.</p>
+
+<p><strong>Recommendation.</strong> Ranking has two stages:</p>
+<ol>
+  <li><strong>Hard constraints.</strong> A model is excluded, with reasons, if it has too few executed cases (default minimum 5), quality below 0.5, a failure rate above 0.2, or breaches an optional p95 or cost-per-case limit.</li>
+  <li><strong>Weighted score.</strong> Remaining models are scored on quality (0.60), p95 latency (0.25) and cost per case (0.15). Latency and cost are min-max normalised across the compared models, so 1 is best. If a component is unavailable for a model, the weights are re-normalised over the components that exist, and the missing component is listed.</li>
+</ol>
+</section>
+
+<section id="data">
+<h2>6. Data model</h2>
+<figure>
+<svg viewBox="0 0 960 400" role="img" aria-label="Entity relationships">
+  <defs>
+    <marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--arrow)"/></marker>
+  </defs>
+  <rect class="box client" x="20" y="20" width="170" height="70" rx="8"/><text class="ttl" x="105" y="44" text-anchor="middle">users</text><text class="sub" x="105" y="62" text-anchor="middle">email, password_hash</text><text class="sub" x="105" y="78" text-anchor="middle">token_version, verified_at</text>
+  <rect class="box data" x="250" y="20" width="170" height="70" rx="8"/><text class="ttl" x="335" y="44" text-anchor="middle">datasets</text><text class="sub" x="335" y="62" text-anchor="middle">name, user_id</text>
+  <rect class="box data" x="480" y="20" width="170" height="70" rx="8"/><text class="ttl" x="565" y="44" text-anchor="middle">dataset_versions</text><text class="sub" x="565" y="62" text-anchor="middle">version_number</text><text class="sub" x="565" y="78" text-anchor="middle">content hash (SHA-256)</text>
+  <rect class="box data" x="710" y="20" width="170" height="70" rx="8"/><text class="ttl" x="795" y="44" text-anchor="middle">test_cases</text><text class="sub" x="795" y="62" text-anchor="middle">input, expected_output</text><text class="sub" x="795" y="78" text-anchor="middle">evaluation_config</text>
+  <rect class="box worker" x="480" y="170" width="170" height="70" rx="8"/><text class="ttl" x="565" y="194" text-anchor="middle">evaluation_runs</text><text class="sub" x="565" y="212" text-anchor="middle">status, config_snapshot</text><text class="sub" x="565" y="228" text-anchor="middle">baseline_run_id, user_id</text>
+  <rect class="box worker" x="710" y="170" width="170" height="70" rx="8"/><text class="ttl" x="795" y="194" text-anchor="middle">case_results</text><text class="sub" x="795" y="212" text-anchor="middle">model, status, latency</text><text class="sub" x="795" y="228" text-anchor="middle">tokens, estimated cost</text>
+  <rect class="box worker" x="710" y="300" width="170" height="60" rx="8"/><text class="ttl" x="795" y="324" text-anchor="middle">case_metrics</text><text class="sub" x="795" y="342" text-anchor="middle">metric_name, value, details</text>
+  <rect class="box api" x="250" y="150" width="170" height="70" rx="8"/><text class="ttl" x="335" y="174" text-anchor="middle">run_summaries</text><text class="sub" x="335" y="192" text-anchor="middle">quality, success, p50/p95</text><text class="sub" x="335" y="208" text-anchor="middle">tokens, cost per model</text>
+  <rect class="box api" x="250" y="250" width="170" height="70" rx="8"/><text class="ttl" x="335" y="274" text-anchor="middle">regression_findings</text><text class="sub" x="335" y="292" text-anchor="middle">metric, baseline, current</text><text class="sub" x="335" y="308" text-anchor="middle">delta, severity</text>
+
+  <path class="edge" marker-end="url(#a4)" d="M190 55H248"/>
+  <path class="edge" marker-end="url(#a4)" d="M420 55H478"/>
+  <path class="edge" marker-end="url(#a4)" d="M650 55H708"/>
+  <path class="edge" marker-end="url(#a4)" d="M565 90V168"/>
+  <path class="edge" marker-end="url(#a4)" d="M650 205H708"/>
+  <path class="edge" marker-end="url(#a4)" d="M795 90V168"/>
+  <path class="edge" marker-end="url(#a4)" d="M795 240V298"/>
+  <path class="edge" marker-end="url(#a4)" d="M480 190H422"/>
+  <path class="edge" marker-end="url(#a4)" d="M500 240V285H422"/>
+  <path class="edge dash" marker-end="url(#a4)" d="M105 90V375H600V242"/>
+  <text class="sub halo" x="120" y="368">user owns datasets and runs</text>
+</svg>
+<figcaption>Figure 4. Core tables. Arrows point from the owning record to the records that reference it.</figcaption>
+</figure>
+<ul>
+  <li><strong>Immutability.</strong> Dataset versions and a run's <code>config_snapshot</code> never change, so a stored result can always be traced to exact inputs and settings.</li>
+  <li><strong>Ownership.</strong> Datasets and runs carry a <code>user_id</code>. Every query filters by the signed-in user, and another account's resource returns <code>404</code>.</li>
+  <li><strong>Precision.</strong> Costs use fixed-point numerics; case inputs and configs are JSONB.</li>
+  <li><strong>Migrations.</strong> Alembic manages schema changes: initial schema, run idempotency key, users and ownership, then email verification.</li>
+</ul>
+</section>
+
+<section id="security">
+<h2>7. Security</h2>
+<table>
+  <tr><th>Concern</th><th>How it is handled</th></tr>
+  <tr><td>Passwords</td><td>argon2id hashes, minimum 10 characters, the same error for every login failure, hashes upgraded when parameters change.</td></tr>
+  <tr><td>Sessions</td><td>Signed token in an <code>HttpOnly</code>, <code>SameSite=Lax</code> cookie (<code>Secure</code> in production). A per-user <code>token_version</code> revokes all sessions.</td></tr>
+  <tr><td>CSRF</td><td>Every state-changing <code>/api</code> call must carry <code>X-Requested-With: fetch</code>. Browsers cannot add it cross-origin without a denied CORS preflight.</td></tr>
+  <tr><td>Email links</td><td>Verification and reset use signed, single-purpose tokens. A reset token is bound to the current password hash, so it works once; it expires in 30 minutes and ends other sessions. "Forgot password" answers identically for unknown addresses.</td></tr>
+  <tr><td>Data isolation</td><td>All data is scoped to the account; foreign resources return 404 so existence is not revealed. Idempotency keys are scoped per account.</td></tr>
+  <tr><td>Abuse limits</td><td>Per-address rate limits (general, run creation, sign-in, sign-up), per-account email limits, dataset and active-run quotas, a global active-run cap, request size cap, no chunked uploads.</td></tr>
+  <tr><td>Client address</td><td><code>TRUSTED_PROXY_HOPS</code> takes the address N entries from the right of <code>X-Forwarded-For</code>, so a caller cannot spoof it to evade limits.</td></tr>
+  <tr><td>Secrets and config</td><td><code>.env</code> is git-ignored. Production refuses to start with the development secret, insecure cookies, or required verification without a delivery method.</td></tr>
+  <tr><td>Logs</td><td>Structured JSON with request IDs. Query strings and credentials are never logged; provider errors are redacted.</td></tr>
+  <tr><td>Browser headers</td><td>Content-Security-Policy, X-Frame-Options, X-Content-Type-Options, Referrer-Policy and Permissions-Policy on the frontend.</td></tr>
+</table>
+</section>
+
+<section id="deploy">
+<h2>8. Deployment</h2>
+<table>
+  <tr><th>Environment</th><th>Layout</th></tr>
+  <tr><td>Local development</td><td>Docker Compose: Postgres, Redis, API, worker and the frontend dev server.</td></tr>
+  <tr><td>Production-style</td><td>A second compose file with production images, nginx serving the built SPA and proxying <code>/api</code>, a separate worker, and no published database ports.</td></tr>
+  <tr><td>Free public hosting</td><td>Render Blueprint (<code>render.yaml</code>) creates the API (Docker), PostgreSQL and Redis. Vercel serves the SPA and rewrites <code>/api/*</code> to Render. Email goes out through Brevo's HTTPS API.</td></tr>
+</table>
+<div class="callout warn">
+  <strong>Free-tier behaviour.</strong>
+  <ul>
+    <li>The API sleeps after 15 idle minutes; the first request then takes about a minute.</li>
+    <li>The free PostgreSQL database expires 30 days after creation.</li>
+    <li>Free Redis is in-memory, so rate-limit counters reset on restart.</li>
+    <li>No background workers, so evaluations run inside the API (<code>RUN_WORKER_INLINE=true</code>), and unfinished runs resume on start-up.</li>
+    <li>Outbound SMTP is blocked, which is why email uses an HTTPS API.</li>
+  </ul>
+</div>
+</section>
+
+<section id="quality">
+<h2>9. Testing and CI</h2>
+<div class="grid">
+  <div class="card"><h4>Backend</h4><p>249 tests against real PostgreSQL covering the API, state machine, orchestrator, evaluators, ranking, regression logic, auth, rate limits, data isolation and email flows. Linted with ruff.</p></div>
+  <div class="card"><h4>Frontend</h4><p>86 Vitest and Testing Library tests for pages, the session shell, the API client and the account flows. Type-checked and linted.</p></div>
+  <div class="card"><h4>Supply chain</h4><p><code>pip-audit</code> and <code>npm audit</code> run in CI and report no known vulnerabilities at the time of the last run.</p></div>
+  <div class="card"><h4>Pipeline</h4><p>GitHub Actions runs backend, frontend, and a Docker job that builds both production images and validates the compose files, on every push and pull request.</p></div>
+</div>
+<p>A manual smoke-test checklist (<code>docs/smoke-test.md</code>) covers the hosted deployment: platform health, accounts, the main workflow, failure handling, abuse controls and free-tier behaviour.</p>
+</section>
+
+<section id="benefits">
+<h2>10. Benefits</h2>
+<div class="grid">
+  <div class="card"><h4>Evidence over opinion</h4><p>Every model is judged on the same inputs with the same evaluators, so differences are real and repeatable.</p></div>
+  <div class="card"><h4>Catches regressions early</h4><p>A baseline turns each run into a check, with severity and an explanation for every finding.</p></div>
+  <div class="card"><h4>Balanced decisions</h4><p>Quality, latency, cost and reliability are weighed in one documented formula, and exclusions come with reasons.</p></div>
+  <div class="card"><h4>Honest numbers</h4><p>Unscorable cases are null, missing prices are unavailable, and failed calls are not hidden. Nothing is silently counted as zero.</p></div>
+  <div class="card"><h4>Cost control</h4><p>Mock models by default, per-model spend caps, and run, case and concurrency limits keep experiments cheap.</p></div>
+  <div class="card"><h4>Reproducible</h4><p>Immutable dataset versions with content hashes and per-run config snapshots make any result traceable.</p></div>
+  <div class="card"><h4>Private by design</h4><p>Per-account data, safe sessions and abuse limits make it usable as a shared hosted service.</p></div>
+  <div class="card"><h4>Runs anywhere</h4><p>The same code runs locally in Docker, as a production-style stack, or on free public hosting.</p></div>
+</div>
+</section>
+
+<section id="limits">
+<h2>11. Limitations</h2>
+<ul>
+  <li>Mock models classify by keywords, so their results are meaningful only on the bundled demo dataset. They demonstrate the platform; they say nothing about real models.</li>
+  <li>Small samples give weak signals. Regression checks and the recommendation are skipped or flagged below a minimum sample size, but they are not statistical tests.</li>
+  <li>Rate limits are per client address and depend on a correct <code>TRUSTED_PROXY_HOPS</code>.</li>
+  <li>Inline-worker mode supports one API instance only.</li>
+  <li>Estimated cost is not an invoice, and some providers report no usage.</li>
+  <li>No roles or SSO. Email verification is optional and off by default.</li>
+  <li>Judge-model evaluation and scheduled runs are not built.</li>
+</ul>
+</section>
+
+<section id="roadmap">
+<h2>12. Roadmap</h2>
+<table>
+  <tr><th>Area</th><th>Next steps</th></tr>
+  <tr><td>Accounts</td><td>OAuth sign-in, account deletion and data export, an admin view of usage</td></tr>
+  <tr><td>Evaluation</td><td>LLM-as-a-judge evaluators with calibration, statistical confidence for small datasets</td></tr>
+  <tr><td>Automation</td><td>Scheduled and CI-triggered runs, exportable reports</td></tr>
+  <tr><td>Cost</td><td>Per-user budgets for live models</td></tr>
+  <tr><td>Operations</td><td>Error monitoring and alerts, a paid database tier or backups</td></tr>
+</table>
+</section>
+
+</main>
+</div>
+</body>
+</html>
